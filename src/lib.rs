@@ -55,6 +55,7 @@ mod benchmark;
 mod benchmark_group;
 pub mod async_executor;
 mod bencher;
+mod cli;
 mod connection;
 #[cfg(feature = "csv_output")]
 mod csv_report;
@@ -781,194 +782,78 @@ impl<M: Measurement> Criterion<M> {
     /// Configure this criterion struct based on the command-line arguments to
     /// this process.
     #[must_use]
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::cognitive_complexity))]
     pub fn configure_from_args(mut self) -> Criterion<M> {
-        use clap::{Arg, Command};
-        let matches = Command::new("Criterion Benchmark")
-            .arg(Arg::new("FILTER")
-                .help("Skip benchmarks whose names do not contain FILTER.")
-                .index(1))
-            .arg(Arg::new("color")
-                .short('c')
-                .long("color")
-                .alias("colour")
-                .takes_value(true)
-                .possible_values(["auto", "always", "never"])
-                .default_value("auto")
-                .help("Configure coloring of output. always = always colorize output, never = never colorize output, auto = colorize output if output is a tty and compiled for unix."))
-            .arg(Arg::new("verbose")
-                .short('v')
-                .long("verbose")
-                .help("Print additional statistical information."))
-            .arg(Arg::new("quiet")
-                .long("quiet")
-                .conflicts_with("verbose")
-                .help("Print only the benchmark results."))
-            .arg(Arg::new("noplot")
-                .short('n')
-                .long("noplot")
-                .help("Disable plot and HTML generation."))
-            .arg(Arg::new("save-baseline")
-                .short('s')
-                .long("save-baseline")
-                .default_value("base")
-                .help("Save results under a named baseline."))
-            .arg(Arg::new("discard-baseline")
-                .long("discard-baseline")
-                .conflicts_with_all(&["save-baseline", "baseline", "baseline-lenient"])
-                .help("Discard benchmark results."))
-            .arg(Arg::new("baseline")
-                .short('b')
-                .long("baseline")
-                .takes_value(true)
-                .conflicts_with_all(&["save-baseline", "baseline-lenient"])
-                .help("Compare to a named baseline. If any benchmarks do not have the specified baseline this command fails."))
-            .arg(Arg::new("baseline-lenient")
-                .long("baseline-lenient")
-                .takes_value(true)
-                .conflicts_with_all(&["save-baseline", "baseline"])
-                .help("Compare to a named baseline. If any benchmarks do not have the specified baseline then just those benchmarks are not compared against the baseline while every other benchmark is compared against the baseline."))
-            .arg(Arg::new("list")
-                .long("list")
-                .help("List all benchmarks")
-                .conflicts_with_all(&["test", "profile-time"]))
-            .arg(Arg::new("format")
-                .long("format")
-                .possible_values(["pretty", "terse"])
-                .default_value("pretty")
-                // Note that libtest's --format also works during test execution, but criterion
-                // doesn't support that at the moment.
-                .help("Output formatting"))
-            .arg(Arg::new("ignored")
-                .long("ignored")
-                .help("List or run ignored benchmarks (currently means skip all benchmarks)"))
-            .arg(Arg::new("exact")
-                .long("exact")
-                .help("Run benchmarks that exactly match the provided filter"))
-            .arg(Arg::new("profile-time")
-                .long("profile-time")
-                .takes_value(true)
-                .help("Iterate each benchmark for approximately the given number of seconds, doing no analysis and without storing the results. Useful for running the benchmarks in a profiler.")
-                .conflicts_with_all(&["test", "list"]))
-            .arg(Arg::new("load-baseline")
-                 .long("load-baseline")
-                 .takes_value(true)
-                 .conflicts_with("profile-time")
-                 .requires("baseline")
-                 .help("Load a previous baseline instead of sampling new data."))
-            .arg(Arg::new("sample-size")
-                .long("sample-size")
-                .takes_value(true)
-                .help(&*format!("Changes the default size of the sample for this run. [default: {}]", self.config.sample_size)))
-            .arg(Arg::new("warm-up-time")
-                .long("warm-up-time")
-                .takes_value(true)
-                .help(&*format!("Changes the default warm up time for this run. [default: {}]", self.config.warm_up_time.as_secs())))
-            .arg(Arg::new("measurement-time")
-                .long("measurement-time")
-                .takes_value(true)
-                .help(&*format!("Changes the default measurement time for this run. [default: {}]", self.config.measurement_time.as_secs())))
-            .arg(Arg::new("nresamples")
-                .long("nresamples")
-                .takes_value(true)
-                .help(&*format!("Changes the default number of resamples for this run. [default: {}]", self.config.nresamples)))
-            .arg(Arg::new("noise-threshold")
-                .long("noise-threshold")
-                .takes_value(true)
-                .help(&*format!("Changes the default noise threshold for this run. [default: {}]", self.config.noise_threshold)))
-            .arg(Arg::new("confidence-level")
-                .long("confidence-level")
-                .takes_value(true)
-                .help(&*format!("Changes the default confidence level for this run. [default: {}]", self.config.confidence_level)))
-            .arg(Arg::new("significance-level")
-                .long("significance-level")
-                .takes_value(true)
-                .help(&*format!("Changes the default significance level for this run. [default: {}]", self.config.significance_level)))
-            .arg(Arg::new("quick")
-                .long("quick")
-                .conflicts_with("sample-size")
-                .help(&*format!("Benchmark only until the significance level has been reached [default: {}]", self.config.quick_mode)))
-            .arg(Arg::new("test")
-                .hide(true)
-                .long("test")
-                .help("Run the benchmarks once, to verify that they execute successfully, but do not measure or report the results.")
-                .conflicts_with_all(&["list", "profile-time"]))
-            .arg(Arg::new("bench")
-                .hide(true)
-                .long("bench"))
-            .arg(Arg::new("plotting-backend")
-                 .long("plotting-backend")
-                 .takes_value(true)
-                 .possible_values(["gnuplot", "plotters"])
-                 .help("Set the plotting backend. By default, Criterion.rs will use the gnuplot backend if gnuplot is available, or the plotters backend if it isn't."))
-            .arg(Arg::new("output-format")
-                .long("output-format")
-                .takes_value(true)
-                .possible_values(["criterion", "bencher"])
-                .default_value("criterion")
-                .help("Change the CLI output format. By default, Criterion.rs will use its own format. If output format is set to 'bencher', Criterion.rs will print output in a format that resembles the 'bencher' crate."))
-            .arg(Arg::new("nocapture")
-                .long("nocapture")
-                .hide(true)
-                .help("Ignored, but added for compatibility with libtest."))
-            .arg(Arg::new("show-output")
-                .long("show-output")
-                .hidden(true)
-                .help("Ignored, but added for compatibility with libtest."))
-            .arg(Arg::new("version")
-                .hidden(true)
-                .short('V')
-                .long("version"))
-            .after_help("
-This executable is a Criterion.rs benchmark.
-See https://github.com/bheisler/criterion.rs for more details.
+        fn warn_ignored_flag(flag: &str) {
+            eprintln!(
+                "Warning: {} will be ignored when running with `cargo criterion`. Use `cargo
+                    criterion {} -- <args>` instead.",
+                flag, flag,
+            );
+        }
 
-To enable debug output, define the environment variable CRITERION_DEBUG.
-Criterion.rs will output more debug information and will save the gnuplot
-scripts alongside the generated plots.
+        fn warn_ignored_flag_with_val(flag: &str, val: &impl std::fmt::Display) {
+            eprintln!(
+                "Warning: {} will be ignored when running with `cargo criterion`. Use `cargo
+                    criterion {} {} -- <args>` instead.",
+                flag, flag, val
+            );
+        }
 
-To test that the benchmarks work, run `cargo test --benches`
-
-NOTE: If you see an 'unrecognized option' error using any of the options above, see:
-https://bheisler.github.io/criterion.rs/book/faq.html
-")
-            .get_matches();
+        let cli::Args {
+            filter,
+            color,
+            verbose,
+            quiet,
+            no_plot,
+            save_baseline,
+            discard_baseline,
+            baseline,
+            baseline_lenient,
+            list,
+            profile_time,
+            export,
+            compare,
+            baselines,
+            compare_threshold,
+            compare_list,
+            load_baseline,
+            sample_size,
+            warm_up_time,
+            measurement_time,
+            num_resamples,
+            noise_threshold,
+            confidence_level,
+            significance_level,
+            quick,
+            test,
+            bench,
+            plotting_backend,
+            output_format,
+        } = cli::parse_args(&self.config);
 
         if self.connection.is_some() {
-            if let Some(color) = matches.value_of("color") {
-                if color != "auto" {
-                    eprintln!("Warning: --color will be ignored when running with cargo-criterion. Use `cargo criterion --color {} -- <args>` instead.", color);
-                }
+            if color == cli::Color::Auto {
+                warn_ignored_flag_with_val("--color", &color);
             }
-            if matches.is_present("verbose") {
-                eprintln!("Warning: --verbose will be ignored when running with cargo-criterion. Use `cargo criterion --output-format verbose -- <args>` instead.");
+            if verbose {
+                warn_ignored_flag("--verbose");
             }
-            if matches.is_present("noplot") {
-                eprintln!("Warning: --noplot will be ignored when running with cargo-criterion. Use `cargo criterion --plotting-backend disabled -- <args>` instead.");
+            if no_plot {
+                warn_ignored_flag("--noplot");
             }
-            if let Some(backend) = matches.value_of("plotting-backend") {
-                eprintln!("Warning: --plotting-backend will be ignored when running with cargo-criterion. Use `cargo criterion --plotting-backend {} -- <args>` instead.", backend);
+            if let Some(backend) = plotting_backend {
+                warn_ignored_flag_with_val("--plotting-backend", &backend);
             }
-            if let Some(format) = matches.value_of("output-format") {
-                if format != "criterion" {
-                    eprintln!("Warning: --output-format will be ignored when running with cargo-criterion. Use `cargo criterion --output-format {} -- <args>` instead.", format);
-                }
+            if output_format == cli::OutputFormat::Criterion {
+                warn_ignored_flag_with_val("--output-format", &output_format);
             }
 
-            if matches.is_present("baseline")
-                || matches
-                    .value_of("save-baseline")
-                    .map(|base| base != "base")
-                    .unwrap_or(false)
-                || matches.is_present("load-baseline")
-            {
+            if baseline.is_some() || !save_baseline.is_default() || load_baseline.is_some() {
                 eprintln!("Error: baselines are not supported when running with cargo-criterion.");
                 std::process::exit(1);
             }
         }
 
-        let bench = matches.is_present("bench");
-        let test = matches.is_present("test");
         let test_mode = match (bench, test) {
             (true, true) => true,   // cargo bench -- --test should run tests
             (true, false) => false, // cargo bench should run benchmarks
@@ -990,9 +875,9 @@ https://bheisler.github.io/criterion.rs/book/faq.html
             Mode::List(list_format)
         } else if test_mode {
             Mode::Test
-        } else if matches.is_present("profile-time") {
-            let num_seconds = matches.value_of_t_or_exit("profile-time");
-
+        } else if list {
+            Mode::List
+        } else if let Some(num_seconds) = profile_time {
             if num_seconds < 1.0 {
                 eprintln!("Profile time must be at least one second.");
                 std::process::exit(1);
@@ -1008,52 +893,29 @@ https://bheisler.github.io/criterion.rs/book/faq.html
             self.connection = None;
         }
 
-        let filter = if matches.is_present("ignored") {
-            // --ignored overwrites any name-based filters passed in.
-            BenchmarkFilter::RejectAll
-        } else if let Some(filter) = matches.value_of("FILTER") {
-            if matches.is_present("exact") {
-                BenchmarkFilter::Exact(filter.to_owned())
-            } else {
-                let regex = Regex::new(filter).unwrap_or_else(|err| {
-                    panic!(
-                        "Unable to parse '{}' as a regular expression: {}",
-                        filter, err
-                    )
-                });
-                BenchmarkFilter::Regex(regex)
-            }
-        } else {
-            BenchmarkFilter::AcceptAll
-        };
-        self = self.with_benchmark_filter(filter);
-
-        #[cfg(feature = "html_reports")]
-        match matches.value_of("plotting-backend") {
-            // Use plotting_backend() here to re-use the panic behavior if Gnuplot is not available.
-            Some("gnuplot") => self = self.plotting_backend(PlottingBackend::Gnuplot),
-            Some("plotters") => self = self.plotting_backend(PlottingBackend::Plotters),
-            Some(val) => panic!("Unexpected plotting backend '{}'", val),
-            None => {}
+        if let Some(f) = filter {
+            self = self.with_filter(f);
         }
 
-        #[cfg(feature = "html_reports")]
-        if matches.is_present("noplot") {
+        if let Some(backend) = plotting_backend {
+            self = self.plotting_backend(PlottingBackend::from(backend));
+        }
+
+        if no_plot {
             self = self.without_plots();
         }
 
-        if let Some(dir) = matches.value_of("save-baseline") {
-            self.baseline = Baseline::Save;
-            self.baseline_directory = dir.to_owned()
-        }
-        if matches.is_present("discard-baseline") {
+        self.baseline = Baseline::Save;
+        self.baseline_directory = save_baseline.0;
+
+        if discard_baseline {
             self.baseline = Baseline::Discard;
         }
-        if let Some(dir) = matches.value_of("baseline") {
+        if let Some(dir) = baseline {
             self.baseline = Baseline::CompareStrict;
             self.baseline_directory = dir.to_owned();
         }
-        if let Some(dir) = matches.value_of("baseline-lenient") {
+        if let Some(dir) = baseline_lenient {
             self.baseline = Baseline::CompareLenient;
             self.baseline_directory = dir.to_owned();
         }
@@ -1068,16 +930,15 @@ https://bheisler.github.io/criterion.rs/book/faq.html
                 self.report.html = None;
             }
         } else {
-            match matches.value_of("output-format") {
-                Some("bencher") => {
+            match output_format {
+                cli::OutputFormat::Bencher => {
                     self.report.bencher_enabled = true;
                     self.report.cli_enabled = false;
                 }
-                _ => {
-                    let verbose = matches.is_present("verbose");
+                cli::OutputFormat::Criterion => {
                     let verbosity = if verbose {
                         CliVerbosity::Verbose
-                    } else if matches.is_present("quiet") {
+                    } else if quiet {
                         CliVerbosity::Quiet
                     } else {
                         CliVerbosity::Normal
@@ -1085,15 +946,13 @@ https://bheisler.github.io/criterion.rs/book/faq.html
                     let stdout_isatty = atty::is(atty::Stream::Stdout);
                     let mut enable_text_overwrite = stdout_isatty && !verbose && !debug_enabled();
                     let enable_text_coloring;
-                    match matches.value_of("color") {
-                        Some("always") => {
-                            enable_text_coloring = true;
-                        }
-                        Some("never") => {
+                    match color {
+                        cli::Color::Always => enable_text_coloring = true,
+                        cli::Color::Never => {
                             enable_text_coloring = false;
                             enable_text_overwrite = false;
                         }
-                        _ => enable_text_coloring = stdout_isatty,
+                        cli::Color::Auto => enable_text_coloring = stdout_isatty,
                     };
                     self.report.bencher_enabled = false;
                     self.report.cli_enabled = true;
@@ -1103,62 +962,90 @@ https://bheisler.github.io/criterion.rs/book/faq.html
             };
         }
 
-        if let Some(dir) = matches.value_of("load-baseline") {
+        if let Some(dir) = load_baseline {
             self.load_baseline = Some(dir.to_owned());
         }
 
-        if matches.is_present("sample-size") {
-            let num_size = matches.value_of_t_or_exit("sample-size");
-
+        if let Some(num_size) = sample_size {
             assert!(num_size >= 10);
             self.config.sample_size = num_size;
         }
-        if matches.is_present("warm-up-time") {
-            let num_seconds = matches.value_of_t_or_exit("warm-up-time");
-
+        if let Some(num_seconds) = warm_up_time {
             let dur = std::time::Duration::from_secs_f64(num_seconds);
             assert!(dur.as_nanos() > 0);
-
             self.config.warm_up_time = dur;
         }
-        if matches.is_present("measurement-time") {
-            let num_seconds = matches.value_of_t_or_exit("measurement-time");
-
+        if let Some(num_seconds) = measurement_time {
             let dur = std::time::Duration::from_secs_f64(num_seconds);
             assert!(dur.as_nanos() > 0);
-
             self.config.measurement_time = dur;
         }
-        if matches.is_present("nresamples") {
-            let num_resamples = matches.value_of_t_or_exit("nresamples");
-
+        if let Some(num_resamples) = num_resamples {
             assert!(num_resamples > 0);
-
             self.config.nresamples = num_resamples;
         }
-        if matches.is_present("noise-threshold") {
-            let num_noise_threshold = matches.value_of_t_or_exit("noise-threshold");
-
-            assert!(num_noise_threshold > 0.0);
-
-            self.config.noise_threshold = num_noise_threshold;
+        if let Some(noise_threshold) = noise_threshold {
+            assert!(noise_threshold > 0.0);
+            self.config.noise_threshold = noise_threshold;
         }
-        if matches.is_present("confidence-level") {
-            let num_confidence_level = matches.value_of_t_or_exit("confidence-level");
-
-            assert!(num_confidence_level > 0.0 && num_confidence_level < 1.0);
-
-            self.config.confidence_level = num_confidence_level;
+        if let Some(confidence_level) = confidence_level {
+            assert!(confidence_level > 0.0 && confidence_level < 1.0);
+            self.config.confidence_level = confidence_level;
         }
-        if matches.is_present("significance-level") {
-            let num_significance_level = matches.value_of_t_or_exit("significance-level");
-
-            assert!(num_significance_level > 0.0 && num_significance_level < 1.0);
-
-            self.config.significance_level = num_significance_level;
+        if let Some(significance_level) = significance_level {
+            assert!(significance_level > 0.0 && significance_level < 1.0);
+            self.config.significance_level = significance_level;
         }
 
-        if matches.is_present("quick") {
+        // XXX: Comparison functionality should ideally live in 'cargo-criterion'.
+        if compare {
+            if self.connection.is_some() {
+                eprintln!(
+                    "Error: tabulating results is not supported when running with cargo-criterion."
+                );
+                std::process::exit(1);
+            }
+            // Other arguments: compare-threshold, compare-list.
+
+            let stdout_isatty = atty::is(atty::Stream::Stdout);
+            let enable_text_coloring = match color {
+                cli::Color::Always => true,
+                cli::Color::Never => false,
+                cli::Color::Auto => stdout_isatty,
+            };
+
+            let args = critcmp::app::Args {
+                baselines,
+                output_list: compare_list,
+                threshold: compare_threshold,
+                color: enable_text_coloring,
+                filter: self.filter,
+            };
+            critcmp::main::main(args);
+            std::process::exit(0);
+        }
+
+        if let Some(baseline) = export {
+            let benchmarks = critcmp::app::Args {
+                baselines,
+                ..Default::default()
+            }
+            .benchmarks()
+            .expect("failed to find baselines");
+            let mut stdout = std::io::stdout();
+            let basedata = match benchmarks.by_baseline.get(&baseline) {
+                Some(basedata) => basedata,
+                None => {
+                    eprintln!("failed to find baseline '{}'", baseline);
+                    std::process::exit(1);
+                }
+            };
+            serde_json::to_writer_pretty(&mut stdout, basedata).unwrap();
+            writeln!(stdout).unwrap();
+            std::process::exit(0);
+        }
+
+        if quick {
             self.config.quick_mode = true;
         }
 
