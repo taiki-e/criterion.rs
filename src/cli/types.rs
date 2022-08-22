@@ -78,6 +78,8 @@ pub enum PlottingBackend {
     Plotters,
 }
 
+#[cfg(feature = "html_reports")]
+#[cfg(feature = "plotters")]
 impl From<PlottingBackend> for crate::PlottingBackend {
     fn from(cli_backend: PlottingBackend) -> Self {
         match cli_backend {
