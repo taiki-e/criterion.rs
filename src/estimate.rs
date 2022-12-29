@@ -114,6 +114,7 @@ impl Estimates {
     pub fn typical(&self) -> &Estimate {
         self.slope.as_ref().unwrap_or(&self.mean)
     }
+    #[cfg(feature = "html_reports")]
     pub fn get(&self, stat: Statistic) -> Option<&Estimate> {
         match stat {
             Statistic::Mean => Some(&self.mean),
@@ -133,6 +134,7 @@ pub struct Distributions {
     pub slope: Option<Distribution<f64>>,
     pub std_dev: Distribution<f64>,
 }
+#[cfg(feature = "html_reports")]
 impl Distributions {
     pub fn typical(&self) -> &Distribution<f64> {
         self.slope.as_ref().unwrap_or(&self.mean)
@@ -159,6 +161,7 @@ pub struct ChangeEstimates {
     pub mean: Estimate,
     pub median: Estimate,
 }
+#[cfg(feature = "html_reports")]
 impl ChangeEstimates {
     pub fn get(&self, stat: Statistic) -> &Estimate {
         match stat {
@@ -173,6 +176,7 @@ pub struct ChangeDistributions {
     pub mean: Distribution<f64>,
     pub median: Distribution<f64>,
 }
+#[cfg(feature = "html_reports")]
 impl ChangeDistributions {
     pub fn get(&self, stat: Statistic) -> &Distribution<f64> {
         match stat {

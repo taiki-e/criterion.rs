@@ -5,6 +5,7 @@ mod percentiles;
 mod resamples;
 mod sample;
 
+#[cfg(feature = "html_reports")]
 pub mod kde;
 pub mod mixed;
 pub mod outliers;

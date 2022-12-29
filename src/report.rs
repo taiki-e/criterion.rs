@@ -1,12 +1,15 @@
 #[cfg(feature = "csv_output")]
 use crate::csv_report::FileCsvReport;
+#[cfg(feature = "html_reports")]
+use crate::html::Html;
 use crate::stats::bivariate::regression::Slope;
+use crate::stats::bivariate::Data;
 use crate::stats::univariate::outliers::tukey::LabeledSample;
-use crate::{html::Html, stats::bivariate::Data};
 
 use crate::estimate::{ChangeDistributions, ChangeEstimates, Distributions, Estimate, Estimates};
 use crate::format;
 use crate::measurement::ValueFormatter;
+#[cfg(feature = "html_reports")]
 use crate::stats::univariate::Sample;
 use crate::stats::Distribution;
 use crate::{PlotConfiguration, Throughput};
@@ -16,11 +19,14 @@ use std::collections::HashSet;
 use std::fmt;
 use std::io::stderr;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+#[cfg(feature = "html_reports")]
+use std::path::Path;
+use std::path::PathBuf;
 
 const MAX_DIRECTORY_NAME_LEN: usize = 64;
 const MAX_TITLE_LEN: usize = 100;
 
+#[cfg_attr(not(feature = "html_reports"), allow(dead_code))]
 pub(crate) struct ComparisonData {
     pub p_value: f64,
     pub t_distribution: Distribution<f64>,
@@ -35,6 +41,7 @@ pub(crate) struct ComparisonData {
     pub base_estimates: Estimates,
 }
 
+#[cfg_attr(not(feature = "html_reports"), allow(dead_code))]
 pub(crate) struct MeasurementData<'a> {
     pub data: Data<'a, f64, f64>,
     pub avg_times: LabeledSample<'a, f64>,
@@ -44,6 +51,7 @@ pub(crate) struct MeasurementData<'a> {
     pub throughput: Option<Throughput>,
 }
 impl<'a> MeasurementData<'a> {
+    #[cfg(feature = "html_reports")]
     pub fn iter_counts(&self) -> &Sample<f64> {
         self.data.x()
     }
@@ -54,6 +62,7 @@ impl<'a> MeasurementData<'a> {
     }
 }
 
+#[cfg(feature = "html_reports")]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ValueType {
     Bytes,
@@ -171,6 +180,7 @@ impl BenchmarkId {
         &self.directory_name
     }
 
+    #[cfg(feature = "html_reports")]
     pub fn as_number(&self) -> Option<f64> {
         match self.throughput {
             Some(Throughput::Bytes(n))
@@ -183,6 +193,7 @@ impl BenchmarkId {
         }
     }
 
+    #[cfg(feature = "html_reports")]
     pub fn value_type(&self) -> Option<ValueType> {
         match self.throughput {
             Some(Throughput::Bytes(_)) => Some(ValueType::Bytes),
@@ -257,6 +268,7 @@ pub struct ReportContext {
     pub output_directory: PathBuf,
     pub plot_config: PlotConfiguration,
 }
+#[cfg(feature = "html_reports")]
 impl ReportContext {
     pub fn report_path<P: AsRef<Path> + ?Sized>(&self, id: &BenchmarkId, file_name: &P) -> PathBuf {
         let mut path = self.output_directory.clone();
@@ -310,6 +322,7 @@ pub(crate) struct Reports {
     pub(crate) bencher_enabled: bool,
     pub(crate) bencher: BencherReport,
     pub(crate) csv_enabled: bool,
+    #[cfg(feature = "html_reports")]
     pub(crate) html: Option<Html>,
 }
 macro_rules! reports_impl {
@@ -325,6 +338,7 @@ macro_rules! reports_impl {
             if self.csv_enabled {
                 FileCsvReport.$name($($argn),*);
             }
+            #[cfg(feature = "html_reports")]
             if let Some(reporter) = &self.html {
                 reporter.$name($($argn),*);
             }

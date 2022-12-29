@@ -1,12 +1,15 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+#[cfg(feature = "html_reports")]
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
+#[cfg(feature = "html_reports")]
 use walkdir::{DirEntry, WalkDir};
 
 use crate::error::{Error, Result};
+#[cfg(feature = "html_reports")]
 use crate::report::BenchmarkId;
 
 pub fn load<A, P: ?Sized>(path: &P) -> Result<A>
@@ -29,6 +32,7 @@ where
     Ok(result)
 }
 
+#[cfg(feature = "html_reports")]
 pub fn is_dir<P>(path: &P) -> bool
 where
     P: AsRef<Path>,
@@ -85,6 +89,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "html_reports")]
 pub fn list_existing_benchmarks<P>(directory: &P) -> Result<Vec<BenchmarkId>>
 where
     P: AsRef<Path>,

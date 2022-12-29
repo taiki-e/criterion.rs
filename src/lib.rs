@@ -63,10 +63,13 @@ mod error;
 mod estimate;
 mod format;
 mod fs;
+#[cfg(feature = "html_reports")]
 mod html;
+#[cfg(feature = "html_reports")]
 mod kde;
 mod macros;
 pub mod measurement;
+#[cfg(feature = "html_reports")]
 mod plot;
 pub mod profiler;
 mod report;
@@ -84,16 +87,20 @@ use std::process::Command;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
+#[cfg(feature = "html_reports")]
 use criterion_plot::{Version, VersionError};
 use once_cell::sync::Lazy;
 
 use crate::benchmark::BenchmarkConfig;
 use crate::connection::Connection;
 use crate::connection::OutgoingMessage;
+#[cfg(feature = "html_reports")]
 use crate::html::Html;
 use crate::measurement::{Measurement, WallTime};
+#[cfg(feature = "html_reports")]
 #[cfg(feature = "plotters")]
 use crate::plot::PlottersBackend;
+#[cfg(feature = "html_reports")]
 use crate::plot::{Gnuplot, Plotter};
 use crate::profiler::{ExternalProfiler, Profiler};
 use crate::report::{BencherReport, CliReport, CliVerbosity, Report, ReportContext, Reports};
@@ -104,7 +111,9 @@ pub use crate::bencher::Bencher;
 pub use crate::benchmark_group::{BenchmarkGroup, BenchmarkId};
 
 static DEBUG_ENABLED: Lazy<bool> = Lazy::new(|| std::env::var_os("CRITERION_DEBUG").is_some());
+#[cfg(feature = "html_reports")]
 static GNUPLOT_VERSION: Lazy<Result<Version, VersionError>> = Lazy::new(criterion_plot::version);
+#[cfg(feature = "html_reports")]
 static DEFAULT_PLOTTING_BACKEND: Lazy<PlottingBackend> = Lazy::new(|| match &*GNUPLOT_VERSION {
     Ok(_) => PlottingBackend::Gnuplot,
     #[cfg(feature = "plotters")]
@@ -275,6 +284,7 @@ pub enum Baseline {
 }
 
 /// Enum used to select the plotting backend.
+#[cfg(feature = "html_reports")]
 #[derive(Debug, Clone, Copy)]
 pub enum PlottingBackend {
     /// Plotting backend which uses the external `gnuplot` command to render plots. This is the
@@ -286,6 +296,7 @@ pub enum PlottingBackend {
     /// Null plotting backend which outputs nothing,
     None,
 }
+#[cfg(feature = "html_reports")]
 impl PlottingBackend {
     fn create_plotter(&self) -> Option<Box<dyn Plotter>> {
         match self {
@@ -418,6 +429,7 @@ impl Default for Criterion {
             cli: CliReport::new(false, false, CliVerbosity::Normal),
             bencher_enabled: false,
             bencher: BencherReport,
+            #[cfg(feature = "html_reports")]
             html: DEFAULT_PLOTTING_BACKEND.create_plotter().map(Html::new),
             csv_enabled: cfg!(feature = "csv_output"),
         };
@@ -455,7 +467,10 @@ impl Default for Criterion {
             criterion.report.cli_enabled = false;
             criterion.report.bencher_enabled = false;
             criterion.report.csv_enabled = false;
-            criterion.report.html = None;
+            #[cfg(feature = "html_reports")]
+            {
+                criterion.report.html = None;
+            }
         }
         criterion
     }
@@ -498,6 +513,7 @@ impl<M: Measurement> Criterion<M> {
     /// if not.
     ///
     /// Panics if `backend` is `PlottingBackend::Gnuplot` and gnuplot is not available.
+    #[cfg(feature = "html_reports")]
     pub fn plotting_backend(mut self, backend: PlottingBackend) -> Criterion<M> {
         if let PlottingBackend::Gnuplot = backend {
             assert!(
@@ -652,6 +668,7 @@ impl<M: Measurement> Criterion<M> {
 
     #[must_use]
     /// Enables plotting
+    #[cfg(feature = "html_reports")]
     pub fn with_plots(mut self) -> Criterion<M> {
         // If running under cargo-criterion then don't re-enable the reports; let it do the reporting.
         if self.connection.is_none() && self.report.html.is_none() {
@@ -667,6 +684,7 @@ impl<M: Measurement> Criterion<M> {
 
     #[must_use]
     /// Disables plotting
+    #[cfg(feature = "html_reports")]
     pub fn without_plots(mut self) -> Criterion<M> {
         self.report.html = None;
         self
@@ -1023,6 +1041,7 @@ https://bheisler.github.io/criterion.rs/book/faq.html
         };
         self = self.with_benchmark_filter(filter);
 
+        #[cfg(feature = "html_reports")]
         match matches.get_one("plotting-backend").map(String::as_str) {
             // Use plotting_backend() here to re-use the panic behavior if Gnuplot is not available.
             Some("gnuplot") => self = self.plotting_backend(PlottingBackend::Gnuplot),
@@ -1031,6 +1050,7 @@ https://bheisler.github.io/criterion.rs/book/faq.html
             None => {}
         }
 
+        #[cfg(feature = "html_reports")]
         if matches.get_flag("noplot") {
             self = self.without_plots();
         }
@@ -1056,7 +1076,10 @@ https://bheisler.github.io/criterion.rs/book/faq.html
             self.report.cli_enabled = false;
             self.report.bencher_enabled = false;
             self.report.csv_enabled = false;
-            self.report.html = None;
+            #[cfg(feature = "html_reports")]
+            {
+                self.report.html = None;
+            }
         } else {
             match matches.get_one("output-format").map(String::as_str) {
                 Some("bencher") => {
@@ -1173,7 +1196,7 @@ https://bheisler.github.io/criterion.rs/book/faq.html
     ///     // Now we can perform benchmarks with this group
     ///     group.bench_function("Bench 1", |b| b.iter(|| 1 ));
     ///     group.bench_function("Bench 2", |b| b.iter(|| 2 ));
-    ///    
+    ///
     ///     group.finish();
     /// }
     /// criterion_group!(benches, bench_simple);
