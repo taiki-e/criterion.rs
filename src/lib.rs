@@ -897,6 +897,8 @@ impl<M: Measurement> Criterion<M> {
             self = self.with_filter(f);
         }
 
+        #[cfg(feature = "html_reports")]
+        #[cfg(feature = "plotters")]
         if let Some(backend) = plotting_backend {
             self = self.plotting_backend(PlottingBackend::from(backend));
         }
