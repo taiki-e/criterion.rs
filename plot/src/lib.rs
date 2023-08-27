@@ -362,7 +362,6 @@
 //! ```
 
 #![deny(missing_docs)]
-#![deny(warnings)]
 #![deny(bare_trait_objects)]
 // This lint has lots of false positives ATM, see
 // https://github.com/Manishearth/rust-clippy/issues/761
