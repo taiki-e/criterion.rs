@@ -37,6 +37,7 @@ extern crate approx;
 extern crate quickcheck;
 
 use regex::Regex;
+use std::io::IsTerminal;
 
 #[macro_use]
 extern crate lazy_static;
@@ -902,7 +903,7 @@ impl<M: Measurement> Criterion<M> {
                     } else {
                         CliVerbosity::Normal
                     };
-                    let stdout_isatty = atty::is(atty::Stream::Stdout);
+                    let stdout_isatty = std::io::stdout().is_terminal();
                     let mut enable_text_overwrite = stdout_isatty && !verbose && !debug_enabled();
                     let enable_text_coloring;
                     match color {
@@ -966,7 +967,7 @@ impl<M: Measurement> Criterion<M> {
             }
             // Other arguments: compare-threshold, compare-list.
 
-            let stdout_isatty = atty::is(atty::Stream::Stdout);
+            let stdout_isatty = std::io::stdout().is_terminal();
             let enable_text_coloring = match color {
                 cli::Color::Always => true,
                 cli::Color::Never => false,
