@@ -36,8 +36,8 @@ extern crate approx;
 #[cfg(test)]
 extern crate quickcheck;
 
-use is_terminal::IsTerminal;
 use regex::Regex;
+use std::io::IsTerminal;
 
 #[cfg(feature = "real_blackbox")]
 extern crate test;
