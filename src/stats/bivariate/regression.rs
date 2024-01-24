@@ -2,8 +2,6 @@
 
 use crate::stats::bivariate::Data;
 
-use cast::From;
-
 type A = f64;
 
 /// A straight line that passes through the origin `y = m * x`
@@ -29,13 +27,13 @@ impl Slope<A> {
     ///
     /// - Time: `O(length)`
     pub fn r_squared(&self, data: &Data<'_, A, A>) -> A {
-        let _0 = A::cast(0);
-        let _1 = A::cast(1);
+        let _0 = 0_f64;
+        let _1 = 1_f64;
         let m = self.0;
         let xs = data.0;
         let ys = data.1;
 
-        let n = A::cast(xs.len());
+        let n = xs.len() as A;
         let y_bar = crate::stats::sum(ys) / n;
 
         let mut ss_res = _0;

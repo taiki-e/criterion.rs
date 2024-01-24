@@ -41,8 +41,6 @@ use std::iter::IntoIterator;
 use std::ops::{Deref, Index};
 use std::slice;
 
-use cast::From;
-
 use crate::stats::univariate::Sample;
 
 use self::Label::*;
@@ -233,17 +231,14 @@ impl Label {
 /// Classifies the sample, and returns a labeled sample.
 ///
 /// - Time: `O(N log N) where N = length`
-pub fn classify(sample: &Sample<A>) -> LabeledSample<'_, A>
-where
-    usize: cast::From<A, Output = Result<usize, cast::Error>>,
-{
+pub fn classify(sample: &Sample<A>) -> LabeledSample<'_, A> {
     let (q1, _, q3) = sample.percentiles().quartiles();
     let iqr = q3 - q1;
 
     // Mild
-    let k_m = A::cast(1.5_f32);
+    let k_m = 1.5_f64;
     // Severe
-    let k_s = A::cast(3);
+    let k_s = 3_f64;
 
     LabeledSample {
         fences: (

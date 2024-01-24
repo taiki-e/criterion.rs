@@ -12,7 +12,6 @@ pub mod bivariate;
 pub mod tuple;
 pub mod univariate;
 
-use cast::From;
 use std::mem;
 use std::ops::Deref;
 
@@ -35,13 +34,10 @@ impl Distribution<A> {
     /// # Panics
     ///
     /// Panics if the `confidence_level` is not in the `(0, 1)` range.
-    pub fn confidence_interval(&self, confidence_level: A) -> (A, A)
-    where
-        usize: cast::From<A, Output = Result<usize, cast::Error>>,
-    {
-        let _0 = A::cast(0);
-        let _1 = A::cast(1);
-        let _50 = A::cast(50);
+    pub fn confidence_interval(&self, confidence_level: A) -> (A, A) {
+        let _0 = 0_f64;
+        let _1 = 1_f64;
+        let _50 = 50_f64;
 
         assert!(confidence_level > _0 && confidence_level < _1);
 
@@ -62,12 +58,12 @@ impl Distribution<A> {
         let n = self.0.len();
         let hits = self.0.iter().filter(|&&x| x < t).count();
 
-        let tails = A::cast(match *tails {
-            Tails::One => 1,
-            Tails::Two => 2,
-        });
+        let tails = match *tails {
+            Tails::One => 1.,
+            Tails::Two => 2.,
+        };
 
-        A::cast(cmp::min(hits, n - hits)) / A::cast(n) * tails
+        cmp::min(hits, n - hits) as f64 / n as f64 * tails
     }
 }
 
@@ -90,13 +86,11 @@ pub enum Tails {
 }
 
 fn dot(xs: &[A], ys: &[A]) -> A {
-    xs.iter()
-        .zip(ys)
-        .fold(A::cast(0), |acc, (&x, &y)| acc + x * y)
+    xs.iter().zip(ys).fold(0_f64, |acc, (&x, &y)| acc + x * y)
 }
 
 fn sum(xs: &[A]) -> A {
     use std::ops::Add;
 
-    xs.iter().cloned().fold(A::cast(0), Add::add)
+    xs.iter().cloned().fold(0_f64, Add::add)
 }
