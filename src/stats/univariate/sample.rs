@@ -1,11 +1,13 @@
 use std::{mem, ops};
 
-use crate::stats::float::Float;
 use crate::stats::tuple::{Tuple, TupledDistributionsBuilder};
 use crate::stats::univariate::Percentiles;
 use crate::stats::univariate::Resamples;
+use cast::From;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
+
+type A = f64;
 
 /// A collection of data points drawn from a population
 ///
@@ -17,10 +19,7 @@ use rayon::prelude::*;
 pub struct Sample<A>([A]);
 
 // TODO(rust-lang/rfcs#735) move this `impl` into a private percentiles module
-impl<A> Sample<A>
-where
-    A: Float,
-{
+impl Sample<A> {
     /// Creates a new sample from an existing slice
     ///
     /// # Panics

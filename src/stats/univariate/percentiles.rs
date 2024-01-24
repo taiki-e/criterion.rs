@@ -1,15 +1,14 @@
-use crate::stats::float::Float;
 use cast::usize;
+use cast::From;
+
+type A = f64;
 
 /// A "view" into the percentiles of a sample
-pub struct Percentiles<A>(Box<[A]>)
-where
-    A: Float;
+pub struct Percentiles<A>(Box<[A]>);
 
 // TODO(rust-lang/rfcs#735) move this `impl` into a private percentiles module
-impl<A> Percentiles<A>
+impl Percentiles<A>
 where
-    A: Float,
     usize: cast::From<A, Output = Result<usize, cast::Error>>,
 {
     /// Returns the percentile at `p`%

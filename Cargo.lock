@@ -294,7 +294,6 @@ dependencies = [
  "csv",
  "futures",
  "itertools",
- "num-traits",
  "oorandom",
  "page_size",
  "plotters",

@@ -1,23 +1,17 @@
 use crate::stats::bivariate::Data;
-use crate::stats::float::Float;
 use crate::stats::rand_util::{new_rng, Rng};
 
-pub struct Resamples<'a, X, Y>
-where
-    X: 'a + Float,
-    Y: 'a + Float,
-{
+type X = f64;
+type Y = f64;
+
+pub struct Resamples<'a, X, Y> {
     rng: Rng,
     data: (&'a [X], &'a [Y]),
     stage: Option<(Vec<X>, Vec<Y>)>,
 }
 
 #[allow(clippy::should_implement_trait)]
-impl<'a, X, Y> Resamples<'a, X, Y>
-where
-    X: 'a + Float,
-    Y: 'a + Float,
-{
+impl<'a> Resamples<'a, X, Y> {
     pub fn new(data: Data<'a, X, Y>) -> Resamples<'a, X, Y> {
         Resamples {
             rng: new_rng(),

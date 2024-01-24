@@ -1,18 +1,16 @@
 //! Regression analysis
 
 use crate::stats::bivariate::Data;
-use crate::stats::float::Float;
+
+use cast::From;
+
+type A = f64;
 
 /// A straight line that passes through the origin `y = m * x`
 #[derive(Clone, Copy)]
-pub struct Slope<A>(pub A)
-where
-    A: Float;
+pub struct Slope<A>(pub A);
 
-impl<A> Slope<A>
-where
-    A: Float,
-{
+impl Slope<A> {
     /// Fits the data to a straight line that passes through the origin using ordinary least
     /// squares
     ///
