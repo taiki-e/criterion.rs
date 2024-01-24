@@ -41,10 +41,13 @@ use std::iter::IntoIterator;
 use std::ops::{Deref, Index};
 use std::slice;
 
-use crate::stats::float::Float;
+use cast::From;
+
 use crate::stats::univariate::Sample;
 
 use self::Label::*;
+
+type A = f64;
 
 /// A classified/labeled sample.
 ///
@@ -55,18 +58,12 @@ use self::Label::*;
 /// `IndexGet` trait lands in stdlib, the indexing operation will return a `(data_point, label)`
 /// pair.
 #[derive(Clone, Copy)]
-pub struct LabeledSample<'a, A>
-where
-    A: Float,
-{
+pub struct LabeledSample<'a, A> {
     fences: (A, A, A, A),
     sample: &'a Sample<A>,
 }
 
-impl<'a, A> LabeledSample<'a, A>
-where
-    A: Float,
-{
+impl<'a> LabeledSample<'a, A> {
     /// Returns the number of data points per label
     ///
     /// - Time: `O(length)`
@@ -111,10 +108,7 @@ where
     }
 }
 
-impl<'a, A> Deref for LabeledSample<'a, A>
-where
-    A: Float,
-{
+impl<'a> Deref for LabeledSample<'a, A> {
     type Target = Sample<A>;
 
     fn deref(&self) -> &Sample<A> {
@@ -123,10 +117,7 @@ where
 }
 
 // FIXME Use the `IndexGet` trait
-impl<'a, A> Index<usize> for LabeledSample<'a, A>
-where
-    A: Float,
-{
+impl<'a> Index<usize> for LabeledSample<'a, A> {
     type Output = Label;
 
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::similar_names))]
@@ -154,10 +145,7 @@ where
     }
 }
 
-impl<'a, 'b, A> IntoIterator for &'b LabeledSample<'a, A>
-where
-    A: Float,
-{
+impl<'a, 'b> IntoIterator for &'b LabeledSample<'a, A> {
     type Item = (A, Label);
     type IntoIter = Iter<'a, A>;
 
@@ -167,18 +155,12 @@ where
 }
 
 /// Iterator over the labeled data
-pub struct Iter<'a, A>
-where
-    A: Float,
-{
+pub struct Iter<'a, A> {
     fences: (A, A, A, A),
     iter: slice::Iter<'a, A>,
 }
 
-impl<'a, A> Iterator for Iter<'a, A>
-where
-    A: Float,
-{
+impl<'a> Iterator for Iter<'a, A> {
     type Item = (A, Label);
 
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::similar_names))]
@@ -251,9 +233,8 @@ impl Label {
 /// Classifies the sample, and returns a labeled sample.
 ///
 /// - Time: `O(N log N) where N = length`
-pub fn classify<A>(sample: &Sample<A>) -> LabeledSample<'_, A>
+pub fn classify(sample: &Sample<A>) -> LabeledSample<'_, A>
 where
-    A: Float,
     usize: cast::From<A, Output = Result<usize, cast::Error>>,
 {
     let (q1, _, q3) = sample.percentiles().quartiles();

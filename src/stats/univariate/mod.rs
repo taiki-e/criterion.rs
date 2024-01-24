@@ -9,7 +9,6 @@ pub mod kde;
 pub mod mixed;
 pub mod outliers;
 
-use crate::stats::float::Float;
 use crate::stats::tuple::{Tuple, TupledDistributionsBuilder};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -20,21 +19,22 @@ use self::resamples::Resamples;
 pub use self::percentiles::Percentiles;
 pub use self::sample::Sample;
 
+type A = f64;
+type B = f64;
+
 /// Performs a two-sample bootstrap
 ///
 /// - Multithreaded
 /// - Time: `O(nresamples)`
 /// - Memory: `O(nresamples)`
 #[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
-pub fn bootstrap<A, B, T, S>(
+pub fn bootstrap<T, S>(
     a: &Sample<A>,
     b: &Sample<B>,
     nresamples: usize,
     statistic: S,
 ) -> T::Distributions
 where
-    A: Float,
-    B: Float,
     S: Fn(&Sample<A>, &Sample<B>) -> T + Sync,
     T: Tuple + Send,
     T::Distributions: Send,

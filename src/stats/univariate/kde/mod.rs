@@ -3,15 +3,16 @@
 pub mod kernel;
 
 use self::kernel::Kernel;
-use crate::stats::float::Float;
 use crate::stats::univariate::Sample;
+use cast::From;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
+
+type A = f64;
 
 /// Univariate kernel density estimator
 pub struct Kde<'a, A, K>
 where
-    A: Float,
     K: Kernel<A>,
 {
     bandwidth: A,
@@ -19,9 +20,8 @@ where
     sample: &'a Sample<A>,
 }
 
-impl<'a, A, K> Kde<'a, A, K>
+impl<'a, K> Kde<'a, A, K>
 where
-    A: 'a + Float,
     K: Kernel<A>,
 {
     /// Creates a new kernel density estimator from the `sample`, using a kernel and estimating
@@ -76,10 +76,10 @@ pub enum Bandwidth {
 }
 
 impl Bandwidth {
-    fn estimate<A: Float>(self, sample: &Sample<A>) -> A {
+    fn estimate(self, sample: &Sample<A>) -> A {
         match self {
             Bandwidth::Silverman => {
-                let factor = A::cast(4. / 3.);
+                let factor: f64 = A::cast(4. / 3.);
                 let exponent = A::cast(1. / 5.);
                 let n = A::cast(sample.len());
                 let sigma = sample.std_dev(None);
@@ -143,6 +143,6 @@ macro_rules! test {
 
 #[cfg(test)]
 mod test {
-    test!(f32);
+    // test!(f32);
     test!(f64);
 }

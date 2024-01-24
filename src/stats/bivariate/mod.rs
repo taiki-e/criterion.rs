@@ -5,11 +5,13 @@ pub mod regression;
 mod resamples;
 
 use crate::stats::bivariate::resamples::Resamples;
-use crate::stats::float::Float;
 use crate::stats::tuple::{Tuple, TupledDistributionsBuilder};
 use crate::stats::univariate::Sample;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
+type X = f64;
+type Y = f64;
 
 /// Bivariate `(X, Y)` data
 ///
@@ -43,11 +45,7 @@ impl<'a, X, Y> Data<'a, X, Y> {
     }
 }
 
-impl<'a, X, Y> Data<'a, X, Y>
-where
-    X: Float,
-    Y: Float,
-{
+impl<'a> Data<'a, X, Y> {
     /// Creates a new data set from two existing slices
     pub fn new(xs: &'a [X], ys: &'a [Y]) -> Data<'a, X, Y> {
         assert!(

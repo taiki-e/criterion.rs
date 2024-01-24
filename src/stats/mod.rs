@@ -12,22 +12,19 @@ pub mod bivariate;
 pub mod tuple;
 pub mod univariate;
 
-mod float;
-
+use cast::From;
 use std::mem;
 use std::ops::Deref;
 
-use crate::stats::float::Float;
 use crate::stats::univariate::Sample;
+
+type A = f64;
 
 /// The bootstrap distribution of some parameter
 #[derive(Clone)]
 pub struct Distribution<A>(Box<[A]>);
 
-impl<A> Distribution<A>
-where
-    A: Float,
-{
+impl Distribution<A> {
     /// Create a distribution from the given values
     pub fn from(values: Box<[A]>) -> Distribution<A> {
         Distribution(values)
@@ -92,19 +89,13 @@ pub enum Tails {
     Two,
 }
 
-fn dot<A>(xs: &[A], ys: &[A]) -> A
-where
-    A: Float,
-{
+fn dot(xs: &[A], ys: &[A]) -> A {
     xs.iter()
         .zip(ys)
         .fold(A::cast(0), |acc, (&x, &y)| acc + x * y)
 }
 
-fn sum<A>(xs: &[A]) -> A
-where
-    A: Float,
-{
+fn sum(xs: &[A]) -> A {
     use std::ops::Add;
 
     xs.iter().cloned().fold(A::cast(0), Add::add)

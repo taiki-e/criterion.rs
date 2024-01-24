@@ -1,12 +1,11 @@
 //! Kernels
 
-use crate::stats::float::Float;
+use cast::From;
+
+type A = f64;
 
 /// Kernel function
-pub trait Kernel<A>: Copy + Sync
-where
-    A: Float,
-{
+pub trait Kernel<A>: Copy + Sync {
     /// Apply the kernel function to the given x-value.
     fn evaluate(&self, x: A) -> A;
 }
@@ -15,10 +14,7 @@ where
 #[derive(Clone, Copy)]
 pub struct Gaussian;
 
-impl<A> Kernel<A> for Gaussian
-where
-    A: Float,
-{
+impl Kernel<A> for Gaussian {
     fn evaluate(&self, x: A) -> A {
         use std::f32::consts::PI;
 
@@ -79,6 +75,6 @@ macro_rules! test {
 
 #[cfg(test)]
 mod test {
-    test!(f32);
+    // test!(f32);
     test!(f64);
 }

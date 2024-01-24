@@ -1,24 +1,19 @@
 use std::mem;
 
-use crate::stats::float::Float;
 use crate::stats::univariate::Sample;
 
 use fastrand::Rng;
 
-pub struct Resamples<'a, A>
-where
-    A: Float,
-{
+type A = f64;
+
+pub struct Resamples<'a, A> {
     rng: Rng,
     sample: &'a [A],
     stage: Option<Vec<A>>,
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(clippy::should_implement_trait))]
-impl<'a, A> Resamples<'a, A>
-where
-    A: 'a + Float,
-{
+impl<'a> Resamples<'a, A> {
     pub fn new(sample: &'a Sample<A>) -> Resamples<'a, A> {
         let slice = sample;
 
@@ -75,7 +70,7 @@ mod test {
             let size = size as usize;
             let nresamples = nresamples as usize;
             if size > 1 {
-                let v: Vec<_> = (0..size).map(|i| i as f32).collect();
+                let v: Vec<_> = (0..size).map(|i| i as f64).collect();
                 let sample = Sample::new(&v);
                 let mut resamples = Resamples::new(sample);
                 let sample = v.iter().map(|&x| x as i64).collect::<HashSet<_>>();
@@ -98,7 +93,7 @@ mod test {
     #[test]
     fn different_subsets() {
         let size = 1000;
-        let v: Vec<_> = (0..size).map(|i| i as f32).collect();
+        let v: Vec<_> = (0..size).map(|i| i as f64).collect();
         let sample = Sample::new(&v);
         let mut resamples = Resamples::new(sample);
 

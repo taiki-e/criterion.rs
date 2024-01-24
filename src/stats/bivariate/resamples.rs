@@ -1,12 +1,14 @@
 use crate::stats::bivariate::Data;
-use crate::stats::float::Float;
 
 use fastrand::Rng;
 
+type X = f64;
+type Y = f64;
+
 pub struct Resamples<'a, X, Y>
 where
-    X: 'a + Float,
-    Y: 'a + Float,
+    X: 'a,
+    Y: 'a,
 {
     rng: Rng,
     data: (&'a [X], &'a [Y]),
@@ -14,11 +16,7 @@ where
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(clippy::should_implement_trait))]
-impl<'a, X, Y> Resamples<'a, X, Y>
-where
-    X: 'a + Float,
-    Y: 'a + Float,
-{
+impl<'a> Resamples<'a, X, Y> {
     pub fn new(data: Data<'a, X, Y>) -> Resamples<'a, X, Y> {
         Resamples {
             rng: Rng::new(),
