@@ -1,7 +1,8 @@
 use std::mem;
 
-use crate::stats::rand_util::{new_rng, Rng};
 use crate::stats::univariate::Sample;
+
+use fastrand::Rng;
 
 type A = f64;
 
@@ -17,7 +18,7 @@ impl<'a> Resamples<'a, A> {
         let slice = sample;
 
         Resamples {
-            rng: new_rng(),
+            rng: Rng::new(),
             sample: slice,
             stage: None,
         }
@@ -32,7 +33,7 @@ impl<'a> Resamples<'a, A> {
                 let mut stage = Vec::with_capacity(n);
 
                 for _ in 0..n {
-                    let idx = rng.rand_range(0u64..(self.sample.len() as u64));
+                    let idx = rng.u64(0u64..(self.sample.len() as u64));
                     stage.push(self.sample[idx as usize]);
                 }
 
@@ -40,7 +41,7 @@ impl<'a> Resamples<'a, A> {
             }
             Some(ref mut stage) => {
                 for elem in stage.iter_mut() {
-                    let idx = rng.rand_range(0u64..(self.sample.len() as u64));
+                    let idx = rng.u64(0u64..(self.sample.len() as u64));
                     *elem = self.sample[idx as usize];
                 }
             }

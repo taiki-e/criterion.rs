@@ -12,8 +12,6 @@ pub mod bivariate;
 pub mod tuple;
 pub mod univariate;
 
-mod rand_util;
-
 use std::{mem, ops::Deref};
 
 use cast::From;

@@ -1,5 +1,6 @@
 use crate::stats::bivariate::Data;
-use crate::stats::rand_util::{new_rng, Rng};
+
+use fastrand::Rng;
 
 type X = f64;
 type Y = f64;
@@ -14,7 +15,7 @@ pub struct Resamples<'a, X, Y> {
 impl<'a> Resamples<'a, X, Y> {
     pub fn new(data: Data<'a, X, Y>) -> Resamples<'a, X, Y> {
         Resamples {
-            rng: new_rng(),
+            rng: Rng::new(),
             data: (data.x(), data.y()),
             stage: None,
         }
@@ -28,7 +29,7 @@ impl<'a> Resamples<'a, X, Y> {
                 let mut stage = (Vec::with_capacity(n), Vec::with_capacity(n));
 
                 for _ in 0..n {
-                    let i = self.rng.rand_range(0u64..(self.data.0.len() as u64)) as usize;
+                    let i = self.rng.u64(0u64..(self.data.0.len() as u64)) as usize;
 
                     stage.0.push(self.data.0[i]);
                     stage.1.push(self.data.1[i]);
@@ -38,7 +39,7 @@ impl<'a> Resamples<'a, X, Y> {
             }
             Some(ref mut stage) => {
                 for i in 0..n {
-                    let j = self.rng.rand_range(0u64..(self.data.0.len() as u64)) as usize;
+                    let j = self.rng.u64(0u64..(self.data.0.len() as u64)) as usize;
 
                     stage.0[i] = self.data.0[j];
                     stage.1[i] = self.data.1[j];
