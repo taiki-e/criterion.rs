@@ -1,8 +1,9 @@
 use std::mem;
 
 use crate::stats::float::Float;
-use crate::stats::rand_util::{new_rng, Rng};
 use crate::stats::univariate::Sample;
+
+use fastrand::Rng;
 
 pub struct Resamples<'a, A>
 where
@@ -22,7 +23,7 @@ where
         let slice = sample;
 
         Resamples {
-            rng: new_rng(),
+            rng: Rng::new(),
             sample: slice,
             stage: None,
         }
@@ -37,7 +38,7 @@ where
                 let mut stage = Vec::with_capacity(n);
 
                 for _ in 0..n {
-                    let idx = rng.rand_range(0u64..(self.sample.len() as u64));
+                    let idx = rng.u64(0u64..(self.sample.len() as u64));
                     stage.push(self.sample[idx as usize])
                 }
 
@@ -45,7 +46,7 @@ where
             }
             Some(ref mut stage) => {
                 for elem in stage.iter_mut() {
-                    let idx = rng.rand_range(0u64..(self.sample.len() as u64));
+                    let idx = rng.u64(0u64..(self.sample.len() as u64));
                     *elem = self.sample[idx as usize]
                 }
             }
