@@ -1,6 +1,5 @@
 use crate::analysis;
 use crate::benchmark::PartialBenchmarkConfig;
-use crate::connection::OutgoingMessage;
 use crate::measurement::Measurement;
 use crate::report::BenchmarkId as InternalBenchmarkId;
 use crate::report::Report;
@@ -301,15 +300,6 @@ impl<M: Measurement> BenchmarkGroup<'_, M> {
 
         match &self.criterion.mode {
             Mode::Benchmark => {
-                if let Some(conn) = &self.criterion.connection {
-                    if do_run {
-                        conn.send(&OutgoingMessage::BeginningBenchmark { id: (&id).into() })
-                            .unwrap();
-                    } else {
-                        conn.send(&OutgoingMessage::SkippingBenchmark { id: (&id).into() })
-                            .unwrap();
-                    }
-                }
                 if do_run {
                     let report_context = ReportContext {
                         output_directory: self.criterion.resolve_output_directory(),
@@ -372,16 +362,6 @@ impl<M: Measurement> Drop for BenchmarkGroup<'_, M> {
     fn drop(&mut self) {
         // I don't really like having a bunch of non-trivial code in drop, but this is the only way
         // to really write linear types like this in Rust...
-        if let Some(conn) = &mut self.criterion.connection {
-            conn.send(&OutgoingMessage::FinishedBenchmarkGroup {
-                group: &self.group_name,
-            })
-            .unwrap();
-
-            conn.serve_value_formatter(self.criterion.measurement.formatter())
-                .unwrap();
-        }
-
         if self.all_ids.len() > 1 && self.any_matched && self.criterion.mode.is_benchmark() {
             let report_context = ReportContext {
                 output_directory: self.criterion.resolve_output_directory(),

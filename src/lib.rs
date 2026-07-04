@@ -41,7 +41,6 @@ mod benchmark;
 mod benchmark_group;
 pub mod async_executor;
 mod bencher;
-mod connection;
 #[cfg(feature = "csv_output")]
 mod csv_report;
 mod error;
@@ -63,10 +62,8 @@ use std::{
     collections::HashSet,
     env,
     io::{stdout, IsTerminal},
-    net::TcpStream,
     path::{Path, PathBuf},
     process::Command,
-    sync::{Mutex, MutexGuard},
     time::Duration,
 };
 
@@ -79,7 +76,6 @@ use {
 use crate::plot::PlottersBackend;
 use crate::{
     benchmark::BenchmarkConfig,
-    connection::{Connection, OutgoingMessage},
     html::Html,
     measurement::{Measurement, WallTime},
     plot::{Gnuplot, Plotter},
@@ -118,19 +114,6 @@ fn default_plotting_backend() -> &'static PlottingBackend {
         }
         #[cfg(not(feature = "plotters"))]
         Err(_) => PlottingBackend::None,
-    })
-}
-
-fn cargo_criterion_connection() -> &'static Option<Mutex<Connection>> {
-    static CARGO_CRITERION_CONNECTION: OnceLock<Option<Mutex<Connection>>> = OnceLock::new();
-
-    CARGO_CRITERION_CONNECTION.get_or_init(|| match std::env::var("CARGO_CRITERION_PORT") {
-        Ok(port_str) => {
-            let port: u16 = port_str.parse().ok()?;
-            let stream = TcpStream::connect(("localhost", port)).ok()?;
-            Some(Mutex::new(Connection::new(stream).ok()?))
-        }
-        Err(_) => None,
     })
 }
 
@@ -363,7 +346,6 @@ pub struct Criterion<M: Measurement = WallTime> {
     all_titles: HashSet<String>,
     measurement: M,
     profiler: Box<RefCell<dyn Profiler>>,
-    connection: Option<MutexGuard<'static, Connection>>,
     mode: Mode,
 }
 
@@ -409,7 +391,7 @@ impl Default for Criterion {
             csv_enabled: cfg!(feature = "csv_output"),
         };
 
-        let mut criterion = Criterion {
+        Criterion {
             config: BenchmarkConfig {
                 confidence_level: 0.95,
                 measurement_time: Duration::from_secs(5),
@@ -431,20 +413,8 @@ impl Default for Criterion {
             all_titles: HashSet::new(),
             measurement: WallTime,
             profiler: Box::new(RefCell::new(ExternalProfiler)),
-            connection: cargo_criterion_connection()
-                .as_ref()
-                .map(|mtx| mtx.lock().unwrap()),
             mode: Mode::Benchmark,
-        };
-
-        if criterion.connection.is_some() {
-            // disable all reports when connected to cargo-criterion; it will do the reporting.
-            criterion.report.cli_enabled = false;
-            criterion.report.bencher_enabled = false;
-            criterion.report.csv_enabled = false;
-            criterion.report.html = None;
         }
-        criterion
     }
 }
 
@@ -465,7 +435,6 @@ impl<M: Measurement> Criterion<M> {
             all_titles: self.all_titles,
             measurement: m,
             profiler: self.profiler,
-            connection: self.connection,
             mode: self.mode,
         }
     }
@@ -642,8 +611,7 @@ impl<M: Measurement> Criterion<M> {
     #[must_use]
     /// Enables plotting
     pub fn with_plots(mut self) -> Criterion<M> {
-        // If running under cargo-criterion then don't re-enable the reports; let it do the reporting.
-        if self.connection.is_none() && self.report.html.is_none() {
+        if self.report.html.is_none() {
             let default_backend = default_plotting_backend().create_plotter();
             if let Some(backend) = default_backend {
                 self.report.html = Some(Html::new(backend));
@@ -932,38 +900,6 @@ https://criterion-rs.github.io/book/faq.html
 ")
             .get_matches();
 
-        if self.connection.is_some() {
-            if let Some(color) = matches.get_one::<String>("color") {
-                if color != "auto" {
-                    eprintln!("Warning: --color will be ignored when running with cargo-criterion. Use `cargo criterion --color {} -- <args>` instead.", color);
-                }
-            }
-            if matches.get_flag("verbose") {
-                eprintln!("Warning: --verbose will be ignored when running with cargo-criterion. Use `cargo criterion --output-format verbose -- <args>` instead.");
-            }
-            if matches.get_flag("noplot") {
-                eprintln!("Warning: --noplot will be ignored when running with cargo-criterion. Use `cargo criterion --plotting-backend disabled -- <args>` instead.");
-            }
-            if let Some(backend) = matches.get_one::<String>("plotting-backend") {
-                eprintln!("Warning: --plotting-backend will be ignored when running with cargo-criterion. Use `cargo criterion --plotting-backend {} -- <args>` instead.", backend);
-            }
-            if let Some(format) = matches.get_one::<String>("output-format") {
-                if format != "criterion" {
-                    eprintln!("Warning: --output-format will be ignored when running with cargo-criterion. Use `cargo criterion --output-format {} -- <args>` instead.", format);
-                }
-            }
-
-            if matches.contains_id("baseline")
-                || matches
-                    .get_one::<String>("save-baseline")
-                    .is_some_and(|base| base != "base")
-                || matches.contains_id("load-baseline")
-            {
-                eprintln!("Error: baselines are not supported when running with cargo-criterion.");
-                std::process::exit(1);
-            }
-        }
-
         let bench = matches.get_flag("bench");
         let test = matches.get_flag("test");
         let test_mode = match (bench, test) {
@@ -998,11 +934,6 @@ https://criterion-rs.github.io/book/faq.html
         } else {
             Mode::Benchmark
         };
-
-        // This is kind of a hack, but disable the connection to the runner if we're not benchmarking.
-        if !self.mode.is_benchmark() {
-            self.connection = None;
-        }
 
         let filter = if matches.get_flag("ignored") {
             // --ignored overwrites any name-based filters passed in.
@@ -1052,46 +983,38 @@ https://criterion-rs.github.io/book/faq.html
             dir.clone_into(&mut self.baseline_directory);
         }
 
-        if self.connection.is_some() {
-            // disable all reports when connected to cargo-criterion; it will do the reporting.
-            self.report.cli_enabled = false;
-            self.report.bencher_enabled = false;
-            self.report.csv_enabled = false;
-            self.report.html = None;
-        } else {
-            match matches.get_one("output-format").map(String::as_str) {
-                Some("bencher") => {
-                    self.report.bencher_enabled = true;
-                    self.report.cli_enabled = false;
-                }
-                _ => {
-                    let verbose = matches.get_flag("verbose");
-                    let verbosity = if verbose {
-                        CliVerbosity::Verbose
-                    } else if matches.get_flag("quiet") {
-                        CliVerbosity::Quiet
-                    } else {
-                        CliVerbosity::Normal
-                    };
-                    let stdout_isatty = stdout().is_terminal();
-                    let mut enable_text_overwrite = stdout_isatty && !verbose && !debug_enabled();
-                    let enable_text_coloring;
-                    match matches.get_one("color").map(String::as_str) {
-                        Some("always") => {
-                            enable_text_coloring = true;
-                        }
-                        Some("never") => {
-                            enable_text_coloring = false;
-                            enable_text_overwrite = false;
-                        }
-                        _ => enable_text_coloring = stdout_isatty,
-                    };
-                    self.report.bencher_enabled = false;
-                    self.report.cli_enabled = true;
-                    self.report.cli =
-                        CliReport::new(enable_text_overwrite, enable_text_coloring, verbosity);
-                }
-            };
+        match matches.get_one("output-format").map(String::as_str) {
+            Some("bencher") => {
+                self.report.bencher_enabled = true;
+                self.report.cli_enabled = false;
+            }
+            _ => {
+                let verbose = matches.get_flag("verbose");
+                let verbosity = if verbose {
+                    CliVerbosity::Verbose
+                } else if matches.get_flag("quiet") {
+                    CliVerbosity::Quiet
+                } else {
+                    CliVerbosity::Normal
+                };
+                let stdout_isatty = stdout().is_terminal();
+                let mut enable_text_overwrite = stdout_isatty && !verbose && !debug_enabled();
+                let enable_text_coloring;
+                match matches.get_one("color").map(String::as_str) {
+                    Some("always") => {
+                        enable_text_coloring = true;
+                    }
+                    Some("never") => {
+                        enable_text_coloring = false;
+                        enable_text_overwrite = false;
+                    }
+                    _ => enable_text_coloring = stdout_isatty,
+                };
+                self.report.bencher_enabled = false;
+                self.report.cli_enabled = true;
+                self.report.cli =
+                    CliReport::new(enable_text_overwrite, enable_text_coloring, verbosity);
+            }
         }
 
         if let Some(dir) = matches.get_one::<String>("load-baseline") {
@@ -1154,9 +1077,7 @@ https://criterion-rs.github.io/book/faq.html
     /// Returns true iff we should save the benchmark results in
     /// json files on the local disk.
     fn should_save_baseline(&self) -> bool {
-        self.connection.is_none()
-            && self.load_baseline.is_none()
-            && !matches!(self.baseline, Baseline::Discard)
+        self.load_baseline.is_none() && !matches!(self.baseline, Baseline::Discard)
     }
 
     /// Return a benchmark group. All benchmarks performed using a benchmark group will be
@@ -1184,11 +1105,6 @@ https://criterion-rs.github.io/book/faq.html
     pub fn benchmark_group<S: Into<String>>(&mut self, group_name: S) -> BenchmarkGroup<'_, M> {
         let group_name = group_name.into();
         assert!(!group_name.is_empty(), "Group name must not be empty.");
-
-        if let Some(conn) = &self.connection {
-            conn.send(&OutgoingMessage::BeginningBenchmarkGroup { group: &group_name })
-                .unwrap();
-        }
 
         BenchmarkGroup::new(self, group_name)
     }

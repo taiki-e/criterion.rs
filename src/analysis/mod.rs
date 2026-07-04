@@ -7,7 +7,6 @@ use crate::stats::univariate::Sample;
 use crate::stats::{Distribution, Tails};
 
 use crate::benchmark::BenchmarkConfig;
-use crate::connection::OutgoingMessage;
 use crate::estimate::{
     build_estimates, ConfidenceInterval, Distributions, Estimate, Estimates, PointEstimates,
 };
@@ -91,22 +90,6 @@ pub(crate) fn common<M: Measurement, T: ?Sized>(
         sampling_mode = sample.0;
         iters = sample.1;
         times = sample.2;
-
-        if let Some(conn) = &criterion.connection {
-            conn.send(&OutgoingMessage::MeasurementComplete {
-                id: id.into(),
-                iters: &iters,
-                times: &times,
-                plot_config: (&report_context.plot_config).into(),
-                sampling_method: sampling_mode.into(),
-                benchmark_config: config.into(),
-            })
-            .unwrap();
-
-            conn.serve_value_formatter(criterion.measurement.formatter())
-                .unwrap();
-            return;
-        }
     }
 
     criterion.report.analysis(id, report_context);
@@ -253,14 +236,12 @@ pub(crate) fn common<M: Measurement, T: ?Sized>(
         });
     }
 
-    if criterion.connection.is_none() {
-        if let Baseline::Save = criterion.baseline {
-            copy_new_dir_to_base(
-                id.as_directory_name(),
-                &criterion.baseline_directory,
-                &report_context.output_directory,
-            );
-        }
+    if let Baseline::Save = criterion.baseline {
+        copy_new_dir_to_base(
+            id.as_directory_name(),
+            &criterion.baseline_directory,
+            &report_context.output_directory,
+        );
     }
 }
 

@@ -1,7 +1,6 @@
 use {
     crate::{
         benchmark::BenchmarkConfig,
-        connection::OutgoingMessage,
         measurement::Measurement,
         report::{BenchmarkId, Report, ReportContext},
         ActualSamplingMode, Bencher, Criterion,
@@ -40,15 +39,8 @@ pub(crate) trait Routine<M: Measurement, T: ?Sized> {
             .profile(id, report_context, time.as_nanos() as f64);
 
         let mut profile_path = report_context.output_directory.clone();
-        if crate::cargo_criterion_connection().is_some() {
-            // If connected to cargo-criterion, generate a cargo-criterion-style path.
-            // This is kind of a hack.
-            profile_path.push("profile");
-            profile_path.push(id.as_directory_name());
-        } else {
-            profile_path.push(id.as_directory_name());
-            profile_path.push("profile");
-        }
+        profile_path.push(id.as_directory_name());
+        profile_path.push("profile");
         criterion
             .profiler
             .borrow_mut()
@@ -140,14 +132,6 @@ pub(crate) trait Routine<M: Measurement, T: ?Sized> {
             .report
             .warmup(id, report_context, wu.as_nanos() as f64);
 
-        if let Some(conn) = &criterion.connection {
-            conn.send(&OutgoingMessage::Warmup {
-                id: id.into(),
-                nanos: wu.as_nanos() as f64,
-            })
-            .unwrap();
-        }
-
         let (wu_elapsed, wu_iters) = self.warm_up(measurement, wu, parameter);
         if crate::debug_enabled() {
             println!(
@@ -184,16 +168,6 @@ pub(crate) trait Routine<M: Measurement, T: ?Sized> {
         criterion
             .report
             .measurement_start(id, report_context, n, expected_ns, total_iters);
-
-        if let Some(conn) = &criterion.connection {
-            conn.send(&OutgoingMessage::MeasurementStart {
-                id: id.into(),
-                sample_count: n,
-                estimate_ns: expected_ns,
-                iter_count: total_iters,
-            })
-            .unwrap();
-        }
 
         let m_elapsed = self.bench(measurement, &m_iters, parameter);
 
