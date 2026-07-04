@@ -19,7 +19,6 @@ license = "Apache-2.0/MIT"
 criterion = { path = "..", default-features = false }
 
 [features]
-real_blackbox = ["criterion/real_blackbox"]
 default = []
 
 [[bench]]

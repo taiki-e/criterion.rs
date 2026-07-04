@@ -82,10 +82,7 @@ stable = [
     "async_smol",
     "async_tokio",
 ]
-default = ["rayon", "plotters", "cargo_bench_support", "alloca"]
-
-# This is a legacy feature that no longer does anything, but removing it would be a semver break.
-real_blackbox = []
+default = ["rayon", "plotters", "alloca"]
 
 # Enable alloca-based memory layout randomization. Reduces bias from memory
 # alignment and cache effects.
@@ -108,9 +105,6 @@ async_tokio = ["dep:tokio", "async"]
 
 # Make Criterion.rs generate its own plots (as opposed to using cargo-criterion)
 html_reports = []
-
-# Make Criterion.rs usable outside of cargo-criterion.
-cargo_bench_support = []
 
 # Make Criterion.rs generate CSV files. This feature is deprecated in favor of
 # cargo-criterion's --message-format=json option.
