@@ -1,5 +1,5 @@
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::ser::Serialize;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::path::Path;

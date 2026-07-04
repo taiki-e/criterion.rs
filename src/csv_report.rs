@@ -6,7 +6,7 @@ use {
         Throughput,
     },
     csv::Writer,
-    serde::Serialize,
+    serde::ser::Serialize,
     std::{io::Write, path::Path},
 };
 

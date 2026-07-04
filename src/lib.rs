@@ -25,10 +25,8 @@
 #[cfg(all(feature = "rayon", target_arch = "wasm32"))]
 compile_error!("Rayon cannot be used when targeting wasi32. Try disabling default features.");
 
-use {
-    regex::Regex,
-    serde::{Deserialize, Serialize},
-};
+use regex::Regex;
+use serde_derive::{Deserialize, Serialize};
 
 // Needs to be declared before other modules
 // in order to be usable there.
