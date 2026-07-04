@@ -4,7 +4,6 @@ pub mod kernel;
 
 use self::kernel::Kernel;
 use crate::stats::univariate::Sample;
-use cast::From;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
@@ -56,10 +55,10 @@ where
 
     /// Estimates the probability density of `x`
     pub fn estimate(&self, x: A) -> A {
-        let _0 = A::cast(0);
+        let _0 = 0f64;
         let slice = self.sample;
         let h = self.bandwidth;
-        let n = A::cast(slice.len());
+        let n = slice.len() as f64;
 
         let sum = slice
             .iter()
@@ -79,7 +78,7 @@ impl Bandwidth {
     fn estimate(self, sample: &Sample<A>) -> A {
         match self {
             Bandwidth::Silverman => {
-                let zero = A::cast(0.0);
+                let zero = 0f64;
                 let range = sample.max() - sample.min();
 
                 // When std_dev is zero (all values identical), bandwidth calculation
@@ -90,16 +89,16 @@ impl Bandwidth {
                     // minimal epsilon if the value is also zero.
                     let val = sample.mean();
                     if val.abs() > zero {
-                        val.abs() * A::cast(0.01)
+                        val.abs() * 0.01f64
                     } else {
-                        A::cast(1e-10) // Minimal epsilon for zero values
+                        1e-10f64 // Minimal epsilon for zero values
                     }
                 } else {
                     // Non-constant data: use Silverman's rule of thumb
                     let sigma = sample.std_dev(None);
-                    let factor: A = A::cast(4. / 3.);
-                    let exponent = A::cast(1. / 5.);
-                    let n = A::cast(sample.len());
+                    let factor: A = 4f64 / 3f64;
+                    let exponent = 1f64 / 5f64;
+                    let n = sample.len() as f64;
                     sigma * (factor / n).powf(exponent)
                 }
             }

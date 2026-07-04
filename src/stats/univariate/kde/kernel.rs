@@ -1,7 +1,5 @@
 //! Kernels
 
-use cast::From;
-
 type A = f64;
 
 /// Kernel function
@@ -18,7 +16,7 @@ impl Kernel<A> for Gaussian {
     fn evaluate(&self, x: A) -> A {
         use std::f32::consts::PI;
 
-        (x.powi(2).exp() * A::cast(2. * PI)).sqrt().recip()
+        (x.powi(2).exp() * (2f32 * PI) as f64).sqrt().recip()
     }
 }
 
