@@ -12,9 +12,9 @@ use {
         AxisScale,
     },
     criterion_plot::prelude::*,
-    itertools::Itertools,
     std::{
         cmp::Ordering,
+        collections::BTreeMap,
         path::{Path, PathBuf},
         process::Child,
     },
@@ -95,12 +95,18 @@ pub(crate) fn line_comparison(
             .set(axis_scale.to_gnuplot())
     });
 
+    let mut grouped: BTreeMap<_, Vec<_>> = BTreeMap::new();
+    for (id, val) in all_curves {
+        grouped.entry(&id.function_id).or_default().push((id, val));
+    }
+
     // This assumes the curves are sorted. It also assumes that the benchmark IDs all have numeric
     // values or throughputs and that value is sensible (ie. not a mix of bytes and elements
     // or whatnot)
-    for (key, group) in &all_curves.iter().chunk_by(|&&&(id, _)| &id.function_id) {
+    for (key, group) in grouped {
         let mut tuples: Vec<_> = group
-            .map(|&&(id, ref sample)| {
+            .iter()
+            .map(|(id, ref sample)| {
                 // Unwrap is fine here because it will only fail if the assumptions above are not true
                 // ie. programmer error.
                 let x = id.as_number().unwrap();
