@@ -45,10 +45,12 @@ mod error;
 mod estimate;
 mod format;
 mod fs;
+#[cfg(feature = "html_reports")]
 mod html;
 mod kde;
 mod macros;
 pub mod measurement;
+#[cfg(feature = "html_reports")]
 mod plot;
 pub mod profiler;
 mod report;
@@ -65,20 +67,23 @@ use std::{
     time::Duration,
 };
 
-use {
-    criterion_plot::{Version, VersionError},
-    std::sync::OnceLock,
-};
+#[cfg(feature = "html_reports")]
+use criterion_plot::{Version, VersionError};
+use std::sync::OnceLock;
 
+#[cfg(feature = "html_reports")]
 #[cfg(feature = "plotters")]
 use crate::plot::PlottersBackend;
 use crate::{
     benchmark::BenchmarkConfig,
-    html::Html,
     measurement::{Measurement, WallTime},
-    plot::{Gnuplot, Plotter},
     profiler::{ExternalProfiler, Profiler},
     report::{BencherReport, CliReport, CliVerbosity, Report, ReportContext, Reports},
+};
+#[cfg(feature = "html_reports")]
+use crate::{
+    html::Html,
+    plot::{Gnuplot, Plotter},
 };
 
 #[cfg(feature = "async")]
@@ -88,12 +93,14 @@ pub use crate::{
     benchmark_group::{BenchmarkGroup, BenchmarkId},
 };
 
+#[cfg(feature = "html_reports")]
 fn gnuplot_version() -> &'static Result<Version, VersionError> {
     static GNUPLOT_VERSION: OnceLock<Result<Version, VersionError>> = OnceLock::new();
 
     GNUPLOT_VERSION.get_or_init(criterion_plot::version)
 }
 
+#[cfg(feature = "html_reports")]
 fn default_plotting_backend() -> &'static PlottingBackend {
     static DEFAULT_PLOTTING_BACKEND: OnceLock<PlottingBackend> = OnceLock::new();
 
@@ -248,6 +255,7 @@ pub enum Baseline {
 /// Enum used to select the plotting backend.
 ///
 /// See [`Criterion::plotting_backend`].
+#[cfg(feature = "html_reports")]
 #[derive(Debug, Clone, Copy)]
 pub enum PlottingBackend {
     /// Plotting backend which uses the external `gnuplot` command to render plots. This is the
@@ -259,6 +267,7 @@ pub enum PlottingBackend {
     /// Null plotting backend which outputs nothing,
     None,
 }
+#[cfg(feature = "html_reports")]
 impl PlottingBackend {
     fn create_plotter(&self) -> Option<Box<dyn Plotter>> {
         match self {
@@ -385,6 +394,7 @@ impl Default for Criterion {
             cli: CliReport::new(false, false, CliVerbosity::Normal),
             bencher_enabled: false,
             bencher: BencherReport,
+            #[cfg(feature = "html_reports")]
             html: default_plotting_backend().create_plotter().map(Html::new),
             csv_enabled: cfg!(feature = "csv_output"),
         };
@@ -454,6 +464,7 @@ impl<M: Measurement> Criterion<M> {
     /// Panics if `backend` is [`PlottingBackend::Gnuplot`] and `gnuplot` is not available.
     ///
     /// [plotting backend]: PlottingBackend
+    #[cfg(feature = "html_reports")]
     pub fn plotting_backend(mut self, backend: PlottingBackend) -> Criterion<M> {
         if let PlottingBackend::Gnuplot = backend {
             assert!(
@@ -608,6 +619,7 @@ impl<M: Measurement> Criterion<M> {
 
     #[must_use]
     /// Enables plotting
+    #[cfg(feature = "html_reports")]
     pub fn with_plots(mut self) -> Criterion<M> {
         if self.report.html.is_none() {
             let default_backend = default_plotting_backend().create_plotter();
@@ -622,6 +634,7 @@ impl<M: Measurement> Criterion<M> {
 
     #[must_use]
     /// Disables plotting
+    #[cfg(feature = "html_reports")]
     pub fn without_plots(mut self) -> Criterion<M> {
         self.report.html = None;
         self
@@ -953,6 +966,7 @@ https://criterion-rs.github.io/book/faq.html
         };
         self = self.with_benchmark_filter(filter);
 
+        #[cfg(feature = "html_reports")]
         match matches.get_one("plotting-backend").map(String::as_str) {
             // Use plotting_backend() here to re-use the panic behavior if Gnuplot is not available.
             Some("gnuplot") => self = self.plotting_backend(PlottingBackend::Gnuplot),
@@ -961,6 +975,7 @@ https://criterion-rs.github.io/book/faq.html
             None => {}
         }
 
+        #[cfg(feature = "html_reports")]
         if matches.get_flag("noplot") {
             self = self.without_plots();
         }
