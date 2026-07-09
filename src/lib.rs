@@ -39,6 +39,7 @@ mod benchmark;
 mod benchmark_group;
 pub mod async_executor;
 mod bencher;
+mod cli;
 #[cfg(feature = "csv_output")]
 mod csv_report;
 mod error;
@@ -746,182 +747,66 @@ impl<M: Measurement> Criterion<M> {
     /// Configure this criterion struct based on the command-line arguments to
     /// this process.
     #[must_use]
-    #[allow(clippy::cognitive_complexity)]
     pub fn configure_from_args(mut self) -> Criterion<M> {
-        use clap::{value_parser, Arg, Command};
-        let matches = Command::new("Criterion Benchmark")
-            .arg(Arg::new("FILTER")
-                .help("Skip benchmarks whose names do not contain FILTER.")
-                .index(1))
-            .arg(Arg::new("color")
-                .short('c')
-                .long("color")
-                .alias("colour")
-                .value_parser(["auto", "always", "never"])
-                .default_value("auto")
-                .help("Configure coloring of output. always = always colorize output, never = never colorize output, auto = colorize output if output is a tty and compiled for unix."))
-            .arg(Arg::new("verbose")
-                .short('v')
-                .long("verbose")
-                .num_args(0)
-                .help("Print additional statistical information."))
-            .arg(Arg::new("quiet")
-                .long("quiet")
-                .num_args(0)
-                .conflicts_with("verbose")
-                .help("Print only the benchmark results."))
-            .arg(Arg::new("noplot")
-                .short('n')
-                .long("noplot")
-                .num_args(0)
-                .help("Disable plot and HTML generation."))
-            .arg(Arg::new("save-baseline")
-                .short('s')
-                .long("save-baseline")
-                .default_value("base")
-                .help("Save results under a named baseline."))
-            .arg(Arg::new("discard-baseline")
-                .long("discard-baseline")
-                .num_args(0)
-                .conflicts_with_all(["save-baseline", "baseline", "baseline-lenient"])
-                .help("Discard benchmark results."))
-            .arg(Arg::new("baseline")
-                .short('b')
-                .long("baseline")
-                .conflicts_with_all(["save-baseline", "baseline-lenient"])
-                .help("Compare to a named baseline. If any benchmarks do not have the specified baseline this command fails."))
-            .arg(Arg::new("baseline-lenient")
-                .long("baseline-lenient")
-                .conflicts_with_all(["save-baseline", "baseline"])
-                .help("Compare to a named baseline. If any benchmarks do not have the specified baseline then just those benchmarks are not compared against the baseline while every other benchmark is compared against the baseline."))
-            .arg(Arg::new("list")
-                .long("list")
-                .num_args(0)
-                .help("List all benchmarks")
-                .conflicts_with_all(["test", "profile-time"]))
-            .arg(Arg::new("format")
-                .long("format")
-                .value_parser(["pretty", "terse"])
-                .default_value("pretty")
-                // Note that libtest's --format also works during test execution, but criterion
-                // doesn't support that at the moment.
-                .help("Output formatting"))
-            .arg(Arg::new("ignored")
-                .long("ignored")
-                .num_args(0)
-                .help("List or run ignored benchmarks (currently means skip all benchmarks)"))
-            .arg(Arg::new("exact")
-                .long("exact")
-                .num_args(0)
-                .help("Run benchmarks that exactly match the provided filter"))
-            .arg(Arg::new("profile-time")
-                .long("profile-time")
-                .value_parser(value_parser!(f64))
-                .help("Iterate each benchmark for approximately the given number of seconds, doing no analysis and without storing the results. Useful for running the benchmarks in a profiler.")
-                .conflicts_with_all(["test", "list"]))
-            .arg(Arg::new("load-baseline")
-                 .long("load-baseline")
-                 .conflicts_with("profile-time")
-                 .requires("baseline")
-                 .help("Load a previous baseline instead of sampling new data."))
-            .arg(Arg::new("sample-size")
-                .long("sample-size")
-                .value_parser(value_parser!(usize))
-                .help(format!("Changes the default size of the sample for this run. [default: {}]", self.config.sample_size)))
-            .arg(Arg::new("warm-up-time")
-                .long("warm-up-time")
-                .value_parser(value_parser!(f64))
-                .help(format!("Changes the default warm up time for this run. [default: {}]", self.config.warm_up_time.as_secs())))
-            .arg(Arg::new("measurement-time")
-                .long("measurement-time")
-                .value_parser(value_parser!(f64))
-                .help(format!("Changes the default measurement time for this run. [default: {}]", self.config.measurement_time.as_secs())))
-            .arg(Arg::new("nresamples")
-                .long("nresamples")
-                .value_parser(value_parser!(usize))
-                .help(format!("Changes the default number of resamples for this run. [default: {}]", self.config.nresamples)))
-            .arg(Arg::new("noise-threshold")
-                .long("noise-threshold")
-                .value_parser(value_parser!(f64))
-                .help(format!("Changes the default noise threshold for this run. [default: {}]", self.config.noise_threshold)))
-            .arg(Arg::new("confidence-level")
-                .long("confidence-level")
-                .value_parser(value_parser!(f64))
-                .help(format!("Changes the default confidence level for this run. [default: {}]", self.config.confidence_level)))
-            .arg(Arg::new("significance-level")
-                .long("significance-level")
-                .value_parser(value_parser!(f64))
-                .help(format!("Changes the default significance level for this run. [default: {}]", self.config.significance_level)))
-            .arg(Arg::new("quick")
-                .long("quick")
-                .num_args(0)
-                .conflicts_with("sample-size")
-                .help(format!("Benchmark only until the significance level has been reached [default: {}]", self.config.quick_mode)))
-            .arg(Arg::new("test")
-                .hide(true)
-                .long("test")
-                .num_args(0)
-                .help("Run the benchmarks once, to verify that they execute successfully, but do not measure or report the results.")
-                .conflicts_with_all(["list", "profile-time"]))
-            .arg(Arg::new("bench")
-                .hide(true)
-                .long("bench")
-                .num_args(0))
-            .arg(Arg::new("plotting-backend")
-                 .long("plotting-backend")
-                 .value_parser(["gnuplot", "plotters"])
-                 .help("Set the plotting backend. By default, Criterion.rs will use the gnuplot backend if gnuplot is available, or the plotters backend if it isn't."))
-            .arg(Arg::new("output-format")
-                .long("output-format")
-                .value_parser(["criterion", "bencher"])
-                .default_value("criterion")
-                .help("Change the CLI output format. By default, Criterion.rs will use its own format. If output format is set to 'bencher', Criterion.rs will print output in a format that resembles the 'bencher' crate."))
-            .arg(Arg::new("nocapture")
-                .long("nocapture")
-                .num_args(0)
-                .hide(true)
-                .help("Ignored, but added for compatibility with libtest."))
-            .arg(Arg::new("show-output")
-                .long("show-output")
-                .num_args(0)
-                .hide(true)
-                .help("Ignored, but added for compatibility with libtest."))
-            .arg(Arg::new("include-ignored")
-                .long("include-ignored")
-                .num_args(0)
-                .hide(true)
-                .help("Ignored, but added for compatibility with libtest."))
-            .arg(Arg::new("version")
-                .hide(true)
-                .short('V')
-                .long("version")
-                .num_args(0))
-            .after_help("
-This executable is a Criterion.rs benchmark.
-See https://github.com/criterion-rs/criterion.rs for more details.
+        fn warn_ignored_flag(flag: &str) {
+            eprintln!(
+                "Warning: {} will be ignored when running with `cargo criterion`. Use `cargo
+                    criterion {} -- <args>` instead.",
+                flag, flag,
+            );
+        }
 
-To enable debug output, define the environment variable CRITERION_DEBUG.
-Criterion.rs will output more debug information and will save the gnuplot
-scripts alongside the generated plots.
+        fn warn_ignored_flag_with_val(flag: &str, val: &impl std::fmt::Display) {
+            eprintln!(
+                "Warning: {} will be ignored when running with `cargo criterion`. Use `cargo
+                    criterion {} {} -- <args>` instead.",
+                flag, flag, val
+            );
+        }
 
-To test that the benchmarks work, run `cargo test --benches`
+        let cli::Args {
+            filter,
+            color,
+            verbose,
+            quiet,
+            no_plot,
+            save_baseline,
+            discard_baseline,
+            baseline,
+            baseline_lenient,
+            list,
+            profile_time,
+            export,
+            compare,
+            baselines,
+            compare_threshold,
+            compare_list,
+            load_baseline,
+            sample_size,
+            warm_up_time,
+            measurement_time,
+            num_resamples,
+            noise_threshold,
+            confidence_level,
+            significance_level,
+            quick,
+            test,
+            bench,
+            plotting_backend,
+            output_format,
+            ignored,
+            exact,
+            format,
+        } = cli::parse_args(&self.config);
 
-NOTE: If you see an 'unrecognized option' error using any of the options above, see:
-https://criterion-rs.github.io/book/faq.html
-")
-            .get_matches();
-
-        let bench = matches.get_flag("bench");
-        let test = matches.get_flag("test");
         let test_mode = match (bench, test) {
             (true, true) => true,   // cargo bench -- --test should run tests
             (true, false) => false, // cargo bench should run benchmarks
             (false, _) => true,     // cargo test --benches should run tests
         };
 
-        self.mode = if matches.get_flag("list") {
-            let list_format = match matches
-                .get_one::<String>("format")
+        self.mode = if list {
+            let list_format = match format
                 .expect("a default value was provided for this")
                 .as_str()
             {
@@ -935,7 +820,7 @@ https://criterion-rs.github.io/book/faq.html
             Mode::List(list_format)
         } else if test_mode {
             Mode::Test
-        } else if let Some(&num_seconds) = matches.get_one("profile-time") {
+        } else if let Some(num_seconds) = profile_time {
             if num_seconds < 1.0 {
                 eprintln!("Profile time must be at least one second.");
                 std::process::exit(1);
@@ -946,14 +831,14 @@ https://criterion-rs.github.io/book/faq.html
             Mode::Benchmark
         };
 
-        let filter = if matches.get_flag("ignored") {
+        let filter = if ignored {
             // --ignored overwrites any name-based filters passed in.
             BenchmarkFilter::RejectAll
-        } else if let Some(filter) = matches.get_one::<String>("FILTER") {
-            if matches.get_flag("exact") {
-                BenchmarkFilter::Exact(filter.to_owned())
+        } else if let Some(filter) = filter {
+            if exact {
+                BenchmarkFilter::Exact(filter)
             } else {
-                let regex = Regex::new(filter).unwrap_or_else(|err| {
+                let regex = Regex::new(&filter).unwrap_or_else(|err| {
                     panic!(
                         "Unable to parse '{}' as a regular expression: {}",
                         filter, err
@@ -967,45 +852,39 @@ https://criterion-rs.github.io/book/faq.html
         self = self.with_benchmark_filter(filter);
 
         #[cfg(feature = "html_reports")]
-        match matches.get_one("plotting-backend").map(String::as_str) {
-            // Use plotting_backend() here to re-use the panic behavior if Gnuplot is not available.
-            Some("gnuplot") => self = self.plotting_backend(PlottingBackend::Gnuplot),
-            Some("plotters") => self = self.plotting_backend(PlottingBackend::Plotters),
-            Some(val) => panic!("Unexpected plotting backend '{}'", val),
-            None => {}
+        if let Some(backend) = plotting_backend {
+            self = self.plotting_backend(PlottingBackend::from(backend));
         }
 
         #[cfg(feature = "html_reports")]
-        if matches.get_flag("noplot") {
+        if no_plot {
             self = self.without_plots();
         }
 
-        if let Some(dir) = matches.get_one::<String>("save-baseline") {
-            self.baseline = Baseline::Save;
-            dir.clone_into(&mut self.baseline_directory);
-        }
-        if matches.get_flag("discard-baseline") {
+        self.baseline = Baseline::Save;
+        self.baseline_directory = save_baseline.0;
+
+        if discard_baseline {
             self.baseline = Baseline::Discard;
         }
-        if let Some(dir) = matches.get_one::<String>("baseline") {
+        if let Some(dir) = baseline {
             self.baseline = Baseline::CompareStrict;
             dir.clone_into(&mut self.baseline_directory);
         }
-        if let Some(dir) = matches.get_one::<String>("baseline-lenient") {
+        if let Some(dir) = baseline_lenient {
             self.baseline = Baseline::CompareLenient;
             dir.clone_into(&mut self.baseline_directory);
         }
 
-        match matches.get_one("output-format").map(String::as_str) {
-            Some("bencher") => {
+        match output_format {
+            cli::OutputFormat::Bencher => {
                 self.report.bencher_enabled = true;
                 self.report.cli_enabled = false;
             }
-            _ => {
-                let verbose = matches.get_flag("verbose");
+            cli::OutputFormat::Criterion => {
                 let verbosity = if verbose {
                     CliVerbosity::Verbose
-                } else if matches.get_flag("quiet") {
+                } else if quiet {
                     CliVerbosity::Quiet
                 } else {
                     CliVerbosity::Normal
@@ -1013,15 +892,13 @@ https://criterion-rs.github.io/book/faq.html
                 let stdout_isatty = stdout().is_terminal();
                 let mut enable_text_overwrite = stdout_isatty && !verbose && !debug_enabled();
                 let enable_text_coloring;
-                match matches.get_one("color").map(String::as_str) {
-                    Some("always") => {
-                        enable_text_coloring = true;
-                    }
-                    Some("never") => {
+                match color {
+                    cli::Color::Always => enable_text_coloring = true,
+                    cli::Color::Never => {
                         enable_text_coloring = false;
                         enable_text_overwrite = false;
                     }
-                    _ => enable_text_coloring = stdout_isatty,
+                    cli::Color::Auto => enable_text_coloring = stdout_isatty,
                 };
                 self.report.bencher_enabled = false;
                 self.report.cli_enabled = true;
@@ -1030,48 +907,48 @@ https://criterion-rs.github.io/book/faq.html
             }
         }
 
-        if let Some(dir) = matches.get_one::<String>("load-baseline") {
-            self.load_baseline = Some(dir.to_owned());
+        if let Some(dir) = load_baseline {
+            self.load_baseline = Some(dir);
         }
 
-        if let Some(&num_size) = matches.get_one("sample-size") {
+        if let Some(num_size) = sample_size {
             assert!(num_size >= 10);
             self.config.sample_size = num_size;
         }
-        if let Some(&num_seconds) = matches.get_one("warm-up-time") {
+        if let Some(num_seconds) = warm_up_time {
             let dur = std::time::Duration::from_secs_f64(num_seconds);
             assert!(dur.as_nanos() > 0);
 
             self.config.warm_up_time = dur;
         }
-        if let Some(&num_seconds) = matches.get_one("measurement-time") {
+        if let Some(num_seconds) = measurement_time {
             let dur = std::time::Duration::from_secs_f64(num_seconds);
             assert!(dur.as_nanos() > 0);
 
             self.config.measurement_time = dur;
         }
-        if let Some(&num_resamples) = matches.get_one("nresamples") {
+        if let Some(num_resamples) = num_resamples {
             assert!(num_resamples > 0);
 
             self.config.nresamples = num_resamples;
         }
-        if let Some(&num_noise_threshold) = matches.get_one("noise-threshold") {
+        if let Some(num_noise_threshold) = noise_threshold {
             assert!(num_noise_threshold > 0.0);
 
             self.config.noise_threshold = num_noise_threshold;
         }
-        if let Some(&num_confidence_level) = matches.get_one("confidence-level") {
+        if let Some(num_confidence_level) = confidence_level {
             assert!(num_confidence_level > 0.0 && num_confidence_level < 1.0);
 
             self.config.confidence_level = num_confidence_level;
         }
-        if let Some(&num_significance_level) = matches.get_one("significance-level") {
+        if let Some(num_significance_level) = significance_level {
             assert!(num_significance_level > 0.0 && num_significance_level < 1.0);
 
             self.config.significance_level = num_significance_level;
         }
 
-        if matches.get_flag("quick") {
+        if quick {
             self.config.quick_mode = true;
         }
 
