@@ -1,8 +1,12 @@
 [workspace]
 members = [".", "plot"]
-resolver = "2"
 
-[workspace.package]
+[package]
+name = "criterion"
+description = "Statistics-driven micro-benchmarking library"
+categories = ["development-tools::profiling"]
+keywords = ["criterion", "benchmark"]
+homepage = "https://criterion-rs.github.io/book/index.html"
 authors = [
     "Jorge Aparicio <japaricious@gmail.com>",
     "Brook Heisler <brookheisler@gmail.com>",
@@ -11,27 +15,12 @@ authors = [
 #
 # * Update version numbers in the book;
 version = "0.8.2"
-edition = "2021"
+edition = "2018"
 # Update the MSRV variable in .github/workflows/ci.yml when changing this.
 rust-version = "1.86.0"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/criterion-rs/criterion.rs"
 readme = "README.md"
-include = ["Cargo.toml", "CHANGELOG.md", "README.md", "LICENSE-MIT", "LICENSE-APACHE", "src/**/*.rs"]
-
-[package]
-name = "criterion"
-description = "Statistics-driven micro-benchmarking library"
-categories = ["development-tools::profiling"]
-keywords = ["criterion", "benchmark"]
-homepage = "https://criterion-rs.github.io/book/index.html"
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-readme.workspace = true
-repository.workspace = true
-rust-version.workspace = true
-version.workspace = true
 exclude = ["book/*"]
 
 [dependencies]
@@ -47,6 +36,7 @@ regex = { version = "1.5.1", default-features = false, features = ["std"] }
 # Optional dependencies
 criterion-plot = { path = "plot", version = "0.8.2", optional = true }
 tinytemplate = { version = "1.1", optional = true }
+# Enable rayon support
 rayon = { version = "1.3", optional = true }
 csv = { version = "1.1", optional = true }
 futures = { version = "0.3", default-features = false, features = [
@@ -58,9 +48,10 @@ tokio = { version = "1.0", default-features = false, features = [
 ], optional = true }
 
 [target.'cfg(any(windows, unix))'.dependencies]
-alloca = { version = "0.4", optional = true }
+alloca_crate = { package = "alloca", version = "0.4", optional = true }
 page_size = { version = "0.6", optional = true }
 
+# Enable plotters support
 [dependencies.plotters]
 version = "^0.3.2"
 optional = true
@@ -86,29 +77,23 @@ default = ["rayon", "plotters", "alloca"]
 
 # Enable alloca-based memory layout randomization. Reduces bias from memory
 # alignment and cache effects.
-alloca = ["dep:alloca", "dep:page_size"]
-
-# Enable rayon support
-rayon = ["dep:rayon"]
-
-# Enable plotters support
-plotters = ["dep:plotters"]
+alloca = ["alloca_crate", "page_size"]
 
 # Enable async/await support
 async = []
 
 # These features enable built-in support for running async benchmarks on each different async
 # runtime.
-async_futures = ["dep:futures", "async"]
-async_smol = ["dep:smol", "async"]
-async_tokio = ["dep:tokio", "async"]
+async_futures = ["futures", "async"]
+async_smol = ["smol", "async"]
+async_tokio = ["tokio", "async"]
 
 # Make Criterion.rs generate its own plots (as opposed to using cargo-criterion)
 html_reports = ["criterion-plot", "tinytemplate"]
 
 # Make Criterion.rs generate CSV files. This feature is deprecated in favor of
 # cargo-criterion's --message-format=json option.
-csv_output = ["dep:csv"]
+csv_output = ["csv"]
 
 [[bench]]
 name = "bench_main"

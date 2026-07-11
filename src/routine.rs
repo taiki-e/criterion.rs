@@ -232,7 +232,7 @@ where
                 // Intentionally vary the stack allocation size to reduce measurement bias from
                 // memory alignment and cache effects.
                 // The shift can go up to a full page size suitable for the system.
-                alloca::with_alloca(
+                alloca_crate::with_alloca(
                     i % page_size::get(), /* how many bytes we want to allocate */
                     |_shifting_stack_space: &mut [core::mem::MaybeUninit<u8>] /* stack allocated slice itself */| {
                         b.iters = *iters;

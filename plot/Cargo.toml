@@ -3,12 +3,20 @@ name = "criterion-plot"
 description = "Criterion's plotting library"
 categories = ["visualization"]
 keywords = ["plotting", "gnuplot", "criterion"]
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-readme.workspace = true
-repository.workspace = true
-version.workspace = true
+authors = [
+    "Jorge Aparicio <japaricious@gmail.com>",
+    "Brook Heisler <brookheisler@gmail.com>",
+]
+# When bumping:
+#
+# * Update version numbers in the book;
+version = "0.8.2"
+edition = "2018"
+# Update the MSRV variable in .github/workflows/ci.yml when changing this.
+rust-version = "1.86.0"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/criterion-rs/criterion.rs"
+readme = "README.md"
 
 [dependencies]
 
